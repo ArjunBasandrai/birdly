@@ -1,0 +1,27 @@
+[project]
+name = "birdly"
+version = "0.1.0"
+description = "Birdly Bird Identifier"
+readme = "README.md"
+authors = [
+    { name = "Arjun Basandrai", email = "arjunbasandrai2004@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "dvc>=3.67.1",
+    "pyyaml>=6.0.3",
+    "typer>=0.27.1",
+]
+
+[project.scripts]
+birdly = "birdly.cli.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.4",
+]
