@@ -1,0 +1,18 @@
+schema: '2.0'
+stages:
+  filter_observations:
+    cmd: uv run python -m birdly.data.filter
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 32b59bedfd113c6daabd63f93f1730ba
+      size: 291
+    - path: src/birdly/data/filter.py
+      hash: md5
+      md5: c65ebcea8365a221b4f3994c53acbece
+      size: 1510
+    outs:
+    - path: data/interim/filtered_observations.parquet
+      hash: md5
+      md5: b7d6b953c6deef2f9adf17bcdab9bcf0
+      size: 812752798

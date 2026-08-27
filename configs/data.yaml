@@ -1,0 +1,16 @@
+raw:
+  observations: observations.csv
+  photos: photos.csv
+  taxa: taxa.csv
+
+processed:
+  filtered_observations: data/interim/filtered_observations.parquet
+
+geography:
+  state: NY
+
+  bounding_box:
+    min_lat: 40.45
+    max_lat: 45.05
+    min_lon: -79.80
+    max_lon: -71.80

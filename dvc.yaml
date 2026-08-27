@@ -1,0 +1,8 @@
+stages:
+  filter_observations:
+    cmd: uv run python -m birdly.data.filter
+    deps:
+      - src/birdly/data/filter.py
+      - configs/data.yaml
+    outs:
+      - data/interim/filtered_observations.parquet
