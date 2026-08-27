@@ -72,6 +72,7 @@ def filter_to_bounds() -> None:
         .filter(
             pl.col("latitude").is_between(min_lat, max_lat)
             & pl.col("longitude").is_between(min_lon, max_lon)
+            & pl.col("quality_grade").eq("research")
         )
     )
 
