@@ -9,10 +9,10 @@ stages:
       size: 291
     - path: src/birdly/data/filter.py
       hash: md5
-      md5: c65ebcea8365a221b4f3994c53acbece
-      size: 1510
+      md5: 2f0d25a04aac751f28698e19ff86fc08
+      size: 2545
     outs:
     - path: data/interim/filtered_observations.parquet
       hash: md5
-      md5: b7d6b953c6deef2f9adf17bcdab9bcf0
-      size: 812752798
+      md5: 4b173bee7eb7cedd1c27f8363298eb91
+      size: 114810913

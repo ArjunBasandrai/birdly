@@ -24,6 +24,10 @@ def filter_to_bounds() -> None:
         data_root / config["raw"]["observations"]
     )
 
+    taxa_data_path = (
+        data_root / config["raw"]["taxa"]
+    )
+
     filtered_observations_data_path = Path(
         config["processed"]["filtered_observations"]
     )
@@ -33,16 +37,54 @@ def filter_to_bounds() -> None:
         exist_ok=True,
     )
 
-    print(f"Input:   {observations_data_path}")
-    print(f"Output:  {filtered_observations_data_path}")
-    print(f"Threads: {pl.thread_pool_size()}")
+    print(f"Observations: {observations_data_path}")
+    print(f"Taxa:         {taxa_data_path}")
+    print(f"Output:       {filtered_observations_data_path}")
+    print(f"Threads:      {pl.thread_pool_size()}")
     print("Scanning and filtering observations...")
 
-    (
-        pl.scan_csv(observations_data_path, separator='\t')
+    taxa = (
+        pl.read_csv(
+            taxa_data_path,
+            separator="\t",
+            quote_char=None,
+            columns=["taxon_id", "rank", "ancestry", "active"],
+            schema_overrides={
+                "active": pl.Boolean,
+            },
+        )
+        .filter(
+            (pl.col("rank") == "species") &
+            pl.col("ancestry")
+                .str.starts_with("48460/1/2/355675")
+                .fill_null(False) &
+            pl.col("active")
+        )
+        .select("taxon_id")
+    )
+
+    observations = (
+        pl.scan_csv(
+            observations_data_path,
+            separator="\t",
+            quote_char=None
+        )
         .filter(
             pl.col("latitude").is_between(min_lat, max_lat)
             & pl.col("longitude").is_between(min_lon, max_lon)
+        )
+    )
+
+    (
+        observations
+        .join(
+            taxa.lazy(),
+            on="taxon_id",
+            how="semi",
+        )
+        .filter(
+            pl.col("anomaly_score")
+            < pl.col("anomaly_score").quantile(0.95)
         )
         .sink_parquet(
             filtered_observations_data_path,
