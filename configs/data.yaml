@@ -5,6 +5,11 @@ raw:
 
 processed:
   filtered_observations: data/interim/filtered_observations.parquet
+  filtered_photos: data/interim/filtered_photos.parquet
+
+allowed_licenses:
+  - CC0
+  - CC-BY
 
 geography:
   state: NY

@@ -5,14 +5,14 @@ stages:
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: 32b59bedfd113c6daabd63f93f1730ba
-      size: 291
+      md5: a3857e329e8c2a84041b38842592d915
+      size: 389
     - path: src/birdly/data/filter.py
       hash: md5
-      md5: 3d010f05bd32bce76330005c1655e442
-      size: 2599
+      md5: d92178ccadbf9f5ebd2b7c126cc7e5c8
+      size: 4770
     outs:
     - path: data/interim/filtered_observations.parquet
       hash: md5
-      md5: c678cba983594f73d30f8350711621e6
-      size: 110281771
+      md5: 6c8a28bf038115a65a3e4a07a7a4109e
+      size: 77933153
