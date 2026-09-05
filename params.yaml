@@ -1,0 +1,8 @@
+min_counts:
+  max_total_count: 1000
+  min_total_count: 300
+  min_state_count: 50
+
+split:
+  n_test: 20
+  n_val: 10

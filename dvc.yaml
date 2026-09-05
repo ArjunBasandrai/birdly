@@ -1,8 +1,33 @@
 stages:
   filter_observations:
-    cmd: uv run python -m birdly.data.filter
+    cmd: uv run python -m birdly.data.filter_observations
     deps:
-      - src/birdly/data/filter.py
+      - src/birdly/data/filter_observations.py
       - configs/data.yaml
     outs:
       - data/interim/filtered_observations.parquet
+
+  filter_photos:
+    cmd: uv run python -m birdly.data.filter_photos
+    deps:
+      - src/birdly/data/filter_photos.py
+      - configs/data.yaml
+      - data/interim/filtered_observations.parquet
+    outs:
+      - data/interim/filtered_photos.parquet
+
+  build_manifest:
+    cmd: uv run python -m birdly.data.build_manifest
+    deps:
+      - src/birdly/data/build_manifest.py
+      - configs/data.yaml
+      - params.yaml
+      - data/interim/filtered_photos.parquet
+    params:
+      - min_counts.max_total_count
+      - min_counts.min_total_count
+      - min_counts.min_state_count
+      - split.n_test
+      - split.n_val
+    outs:
+      - data/processed/manifest.parquet

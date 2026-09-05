@@ -6,6 +6,7 @@ raw:
 processed:
   filtered_observations: data/interim/filtered_observations.parquet
   filtered_photos: data/interim/filtered_photos.parquet
+  manifest: data/processed/manifest.parquet
 
 allowed_licenses:
   - CC0

@@ -1,18 +1,89 @@
 schema: '2.0'
 stages:
   filter_observations:
+    cmd: uv run python -m birdly.data.filter_observations
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 9281d211111c50d7514b631f651f0ce4
+      size: 432
+    - path: src/birdly/data/filter_observations.py
+      hash: md5
+      md5: 55230d806dbfa582ea87a512208c4113
+      size: 2563
+    outs:
+    - path: data/interim/filtered_observations.parquet
+      hash: md5
+      md5: 4e4c6fa47216d1ca984137cddaba1251
+      size: 80286130
+  filter:
     cmd: uv run python -m birdly.data.filter
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: a3857e329e8c2a84041b38842592d915
-      size: 389
+      md5: 1b5ee62a564952289c0b9ac447f72f80
+      size: 535
     - path: src/birdly/data/filter.py
       hash: md5
-      md5: d92178ccadbf9f5ebd2b7c126cc7e5c8
-      size: 4770
+      md5: b6c7d1cb22b6171c735a4568c9724595
+      size: 4692
     outs:
     - path: data/interim/filtered_observations.parquet
       hash: md5
       md5: 6c8a28bf038115a65a3e4a07a7a4109e
       size: 77933153
+    - path: data/interim/filtered_photos.parquet
+      hash: md5
+      md5: d0beb4fb58018eb23f699ae2e50865ba
+      size: 17561597
+  filter_photos:
+    cmd: uv run python -m birdly.data.filter_photos
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 9281d211111c50d7514b631f651f0ce4
+      size: 432
+    - path: data/interim/filtered_observations.parquet
+      hash: md5
+      md5: 4e4c6fa47216d1ca984137cddaba1251
+      size: 80286130
+    - path: src/birdly/data/filter_photos.py
+      hash: md5
+      md5: b4fa42ee4f8b073c0d493903b1da3e79
+      size: 1693
+    outs:
+    - path: data/interim/filtered_photos.parquet
+      hash: md5
+      md5: 853a131025dcab6abd278ac4b1cb305f
+      size: 17563762
+  build_manifest:
+    cmd: uv run python -m birdly.data.build_manifest
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 9281d211111c50d7514b631f651f0ce4
+      size: 432
+    - path: data/interim/filtered_photos.parquet
+      hash: md5
+      md5: 853a131025dcab6abd278ac4b1cb305f
+      size: 17563762
+    - path: params.yaml
+      hash: md5
+      md5: abff42bd4346e5b01d5feecc3c5a7a2b
+      size: 120
+    - path: src/birdly/data/build_manifest.py
+      hash: md5
+      md5: aa6b1cb9c81127db2c8f4ac79c9e0ce6
+      size: 9658
+    params:
+      params.yaml:
+        min_counts.max_total_count: 1000
+        min_counts.min_state_count: 50
+        min_counts.min_total_count: 300
+        split.n_test: 20
+        split.n_val: 10
+    outs:
+    - path: data/processed/manifest.parquet
+      hash: md5
+      md5: 273f30f9d01c48e9932514358f7da687
+      size: 18959297
