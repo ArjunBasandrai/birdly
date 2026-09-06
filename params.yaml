@@ -6,3 +6,6 @@ min_counts:
 split:
   n_test: 20
   n_val: 10
+
+download:
+  image_size: medium

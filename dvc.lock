@@ -69,8 +69,8 @@ stages:
       size: 17563762
     - path: params.yaml
       hash: md5
-      md5: abff42bd4346e5b01d5feecc3c5a7a2b
-      size: 120
+      md5: b7a4ed55e838b1ac8915135a55f295bd
+      size: 151
     - path: src/birdly/data/build_manifest.py
       hash: md5
       md5: aa6b1cb9c81127db2c8f4ac79c9e0ce6
@@ -85,5 +85,33 @@ stages:
     outs:
     - path: data/processed/manifest.parquet
       hash: md5
-      md5: 273f30f9d01c48e9932514358f7da687
-      size: 18959297
+      md5: bd32f0aac0f26e02df2c3cc7770cbcc8
+      size: 18959063
+  download_images:
+    cmd: uv run python -m birdly.data.download_images
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 9281d211111c50d7514b631f651f0ce4
+      size: 432
+    - path: data/processed/manifest.parquet
+      hash: md5
+      md5: bd32f0aac0f26e02df2c3cc7770cbcc8
+      size: 18959063
+    - path: params.yaml
+      hash: md5
+      md5: b7a4ed55e838b1ac8915135a55f295bd
+      size: 151
+    - path: src/birdly/data/download_images.py
+      hash: md5
+      md5: 33690a9ae7f8eb8a06ad62caa73d8aab
+      size: 4362
+    params:
+      params.yaml:
+        download.image_size: medium
+    outs:
+    - path: B:/images
+      hash: md5
+      md5: 14fdb8a01c29673a5b2c3cb003cebaed.dir
+      size: 23479483721
+      nfiles: 233665

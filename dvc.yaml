@@ -1,3 +1,6 @@
+vars:
+  - .birdly/local.yaml
+
 stages:
   filter_observations:
     cmd: uv run python -m birdly.data.filter_observations
@@ -31,3 +34,17 @@ stages:
       - split.n_val
     outs:
       - data/processed/manifest.parquet
+
+  download_images:
+    cmd: uv run python -m birdly.data.download_images
+    deps:
+      - src/birdly/data/download_images.py
+      - configs/data.yaml
+      - params.yaml
+      - data/processed/manifest.parquet
+    params:
+      - download.image_size
+    outs:
+      - ${image_data_root}:
+          cache: false
+          persist: true
