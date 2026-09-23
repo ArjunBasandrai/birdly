@@ -39,6 +39,7 @@ class BenchmarkResult:
     p95_latency_ms: float | None
     p99_latency_ms: float | None
     throughput_images_per_second: float | None
+    warmup_total_ms: float | None
     peak_gpu_memory_mib: float | None
     process_ram_mib: float | None
     precision: str
@@ -51,14 +52,17 @@ class BenchmarkResult:
 
 
 @dataclass(frozen=True)
-class EagerBackend:
+class PyTorchBackend:
     predictor: Predictor
     cpu_threads: int | None = None
-    name: str = "pytorch-eager"
+
+    @property
+    def name(self) -> str:
+        return self.predictor.backend
 
     @property
     def model_name(self) -> str:
-        return type(self.predictor.model).__name__
+        return self.predictor.model_name
 
     @property
     def precision(self) -> str:
@@ -194,7 +198,8 @@ def _summarize(
     mode: str,
     batch_size: int,
     latencies: Sequence[float],
-    backend: EagerBackend,
+    warmup_total_ms: float,
+    backend: PyTorchBackend,
 ) -> BenchmarkResult:
     mean = sum(latencies) / len(latencies)
     return BenchmarkResult(
@@ -205,6 +210,7 @@ def _summarize(
         p95_latency_ms=_percentile(latencies, 0.95),
         p99_latency_ms=_percentile(latencies, 0.99),
         throughput_images_per_second=batch_size * 1000.0 / mean,
+        warmup_total_ms=warmup_total_ms,
         peak_gpu_memory_mib=_peak_memory(backend.predictor.device),
         process_ram_mib=_process_ram(backend.predictor.device),
         precision=backend.precision,
@@ -218,7 +224,7 @@ def _summarize(
 def _oom_result(
     mode: str,
     batch_size: int,
-    backend: EagerBackend,
+    backend: PyTorchBackend,
     error: BaseException,
 ) -> BenchmarkResult:
     return BenchmarkResult(
@@ -229,6 +235,7 @@ def _oom_result(
         p95_latency_ms=None,
         p99_latency_ms=None,
         throughput_images_per_second=None,
+        warmup_total_ms=None,
         peak_gpu_memory_mib=_peak_memory(backend.predictor.device),
         process_ram_mib=_process_ram(backend.predictor.device),
         precision=backend.precision,
@@ -247,7 +254,7 @@ def _benchmark_batches(
     batch_sizes: Sequence[int],
     warmup_iterations: int,
     iterations: int,
-    backend: EagerBackend,
+    backend: PyTorchBackend,
     prepare_call: Callable[[int], Callable[[], Any]],
     timer: Callable[[Callable[[], Any], torch.device], float],
 ) -> list[BenchmarkResult]:
@@ -257,13 +264,24 @@ def _benchmark_batches(
         try:
             call = prepare_call(batch_size)
             with torch.inference_mode():
+                _sync(device)
+                warmup_start = time.perf_counter()
                 for _ in range(warmup_iterations):
                     call()
                 _sync(device)
+                warmup_total_ms = (time.perf_counter() - warmup_start) * 1000.0
                 if device.type == "cuda":
                     torch.cuda.reset_peak_memory_stats(device)
                 latencies = [timer(call, device) for _ in range(iterations)]
-            results.append(_summarize(mode, batch_size, latencies, backend))
+            results.append(
+                _summarize(
+                    mode,
+                    batch_size,
+                    latencies,
+                    warmup_total_ms,
+                    backend,
+                )
+            )
         except (RuntimeError, MemoryError) as error:
             if not isinstance(error, torch.cuda.OutOfMemoryError) and (
                 "out of memory" not in str(error).lower()
@@ -278,9 +296,10 @@ def _benchmark_batches(
 
 def _print_table(results: Sequence[BenchmarkResult]) -> None:
     print(
-        f"{'device':<6} {'threads':>7} {'mode':<12} {'batch':>5} {'mean ms':>9} "
-        f"{'p50':>9} {'p95':>9} {'p99':>9} {'img/s':>9} {'GPU MiB':>9} "
-        f"{'RAM MiB':>9} {'status':>8}"
+        f"{'backend':<25} {'precision':<7} {'device':<6} {'threads':>7} "
+        f"{'mode':<12} {'batch':>5} {'warmup':>9} {'mean ms':>9} {'p50':>9} "
+        f"{'p95':>9} {'p99':>9} {'img/s':>9} {'GPU MiB':>9} {'RAM MiB':>9} "
+        f"{'status':>8}"
     )
     for result in results:
         raw_values = (
@@ -299,10 +318,14 @@ def _print_table(results: Sequence[BenchmarkResult]) -> None:
         process_ram = (
             "-" if result.process_ram_mib is None else f"{result.process_ram_mib:.1f}"
         )
+        warmup_total = (
+            "-" if result.warmup_total_ms is None else f"{result.warmup_total_ms:.2f}"
+        )
         cpu_threads = "-" if result.cpu_threads is None else str(result.cpu_threads)
         print(
-            f"{result.device:<6} {cpu_threads:>7} {result.mode:<12} "
-            f"{result.batch_size:>5} {values[0]:>9} "
+            f"{result.backend:<25} {result.precision:<7} {result.device:<6} "
+            f"{cpu_threads:>7} {result.mode:<12} {result.batch_size:>5} "
+            f"{warmup_total:>9} {values[0]:>9} "
             f"{values[1]:>9} {values[2]:>9} {values[3]:>9} {values[4]:>9} "
             f"{gpu_memory:>9} {process_ram:>9} {result.status:>8}"
         )
@@ -335,7 +358,10 @@ def _run_device_benchmark(
     warmup_iterations: int,
     iterations: int,
     cpu_threads: int | None = None,
+    compile_model: bool = False,
 ) -> tuple[dict[str, Any], list[BenchmarkResult]]:
+    if compile_model:
+        torch.compiler.reset()
     if device == "cpu":
         if cpu_threads is None:
             raise ValueError("CPU thread count is required for a CPU benchmark")
@@ -346,16 +372,17 @@ def _run_device_benchmark(
         raise ValueError("CPU thread count must be null for a CUDA benchmark")
 
     load_start = time.perf_counter()
-    predictor = load_predictor(device=device)
+    predictor = load_predictor(device=device, compile_model=compile_model)
     _sync(predictor.device)
     model_load_ms = (time.perf_counter() - load_start) * 1000.0
-    backend = EagerBackend(predictor, cpu_threads=cpu_threads)
+    backend = PyTorchBackend(predictor, cpu_threads=cpu_threads)
     cpu_tensors = [preprocess_image(predictor, path) for path in image_paths]
 
     cold_batch = cpu_tensors[0].unsqueeze(0).to(predictor.device)
     _sync(predictor.device)
+    cold_timer = _end_to_end_timer if compile_model else _model_timer
     with torch.inference_mode():
-        cold_inference_ms = _model_timer(
+        cold_inference_ms = cold_timer(
             lambda: backend.model_forward(cold_batch), predictor.device
         )
 
@@ -397,8 +424,12 @@ def _run_device_benchmark(
     startup = {
         "device": str(predictor.device),
         "cpu_threads": cpu_threads,
+        "backend": predictor.backend,
+        "compile_mode": predictor.compile_mode,
         "model_load_ms": model_load_ms,
         "cold_model_inference_ms": cold_inference_ms,
+        "cold_inference_includes_compilation": compile_model,
+        "compile_and_first_inference_ms": cold_inference_ms if compile_model else None,
         "warmed_model_inference_mean_ms": warmed_latency_ms,
     }
     return startup, model_results + end_to_end_results
@@ -412,7 +443,10 @@ def run_benchmark(
     warmup_iterations: int = 10,
     iterations: int = 50,
     output_directory: Path = DEFAULT_OUTPUT_DIRECTORY,
+    compile_model: bool = False,
 ) -> dict[str, Any]:
+    if compile_model and warmup_iterations < 1:
+        raise ValueError("Compiled benchmarks require at least one warmup iteration")
     environment = collect_environment()
     for warning in environment["warnings"]:
         print(f"WARNING: {warning}")
@@ -442,6 +476,7 @@ def run_benchmark(
             warmup_iterations=warmup_iterations,
             iterations=iterations,
             cpu_threads=cpu_threads,
+            compile_model=compile_model,
         )
         if device == "cuda":
             startup[device] = device_startup
@@ -460,6 +495,7 @@ def run_benchmark(
             "warmup_iterations": warmup_iterations,
             "iterations": iterations,
             "output_directory": str(output_directory),
+            "compile_model": compile_model,
         },
         "startup": startup,
         "input_paths": [str(path) for path in image_paths],
@@ -492,6 +528,7 @@ def _parse_args() -> dict[str, Any]:
     parser.add_argument("--warmup-iterations", type=int, default=10)
     parser.add_argument("--iterations", type=int, default=50)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIRECTORY)
+    parser.add_argument("--compile", action="store_true", dest="compile_model")
     args = parser.parse_args()
     cuda_batch_sizes = tuple(sorted(set(args.cuda_batch_sizes)))
     cpu_batch_sizes = tuple(sorted(set(args.cpu_batch_sizes)))
@@ -504,12 +541,15 @@ def _parse_args() -> dict[str, Any]:
         parser.error("batch sizes must be positive")
     if args.warmup_iterations < 0 or args.iterations < 1:
         parser.error("warmup must not be negative and iterations must be positive")
+    if args.compile_model and args.warmup_iterations < 1:
+        parser.error("compiled benchmarks require at least one warmup iteration")
     return {
         "cuda_batch_sizes": cuda_batch_sizes,
         "cpu_batch_sizes": cpu_batch_sizes,
         "warmup_iterations": args.warmup_iterations,
         "iterations": args.iterations,
         "output_directory": args.output_dir,
+        "compile_model": args.compile_model,
     }
 
 

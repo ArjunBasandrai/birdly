@@ -20,6 +20,7 @@ DEFAULT_MODEL_DIRECTORY = Path(
 DEFAULT_CHECKPOINT_PATH = DEFAULT_MODEL_DIRECTORY / "best.pt"
 DEFAULT_CLASS_MAPPING_PATH = DEFAULT_MODEL_DIRECTORY / "class_mapping.json"
 DEFAULT_SPECIES_NAMES_PATH = Path(__file__).with_name("species_names.json")
+DEFAULT_COMPILE_MODE = "default"
 
 
 class Prediction(TypedDict):
@@ -35,6 +36,9 @@ class Predictor:
     class_to_taxon: dict[int, int]
     taxon_to_name: dict[int, str]
     device: torch.device
+    model_name: str
+    backend: str
+    compile_mode: str | None
 
 
 def load_predictor(
@@ -42,6 +46,7 @@ def load_predictor(
     class_mapping_path: str | Path = DEFAULT_CLASS_MAPPING_PATH,
     species_names_path: str | Path = DEFAULT_SPECIES_NAMES_PATH,
     device: str | torch.device | None = None,
+    compile_model: bool = False,
 ) -> Predictor:
     checkpoint_path = Path(checkpoint_path)
     class_mapping_path = Path(class_mapping_path)
@@ -90,6 +95,11 @@ def load_predictor(
     model.load_state_dict(checkpoint["model_state_dict"])
     model.to(selected_device)
     model.eval()
+    model_name = type(model).__name__
+    compile_mode = DEFAULT_COMPILE_MODE if compile_model else None
+    if compile_mode is not None:
+        model = torch.compile(model, mode=compile_mode)
+    backend = "pytorch-compile-inductor" if compile_model else "pytorch-eager"
 
     preprocessing = checkpoint["preprocessing"]
     image_size = int(preprocessing["image_size"])
@@ -105,11 +115,14 @@ def load_predictor(
         ]
     )
     return Predictor(
-        model,
-        transform,
-        class_to_taxon,
-        taxon_to_name,
-        selected_device,
+        model=model,
+        transform=transform,
+        class_to_taxon=class_to_taxon,
+        taxon_to_name=taxon_to_name,
+        device=selected_device,
+        model_name=model_name,
+        backend=backend,
+        compile_mode=compile_mode,
     )
 
 
@@ -166,9 +179,10 @@ def predict_image(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Predict one bird image.")
     parser.add_argument("image", type=Path)
+    parser.add_argument("--compile", action="store_true", dest="compile_model")
     args = parser.parse_args()
 
-    predictor = load_predictor()
+    predictor = load_predictor(compile_model=args.compile_model)
     for rank, prediction in enumerate(predict_image(predictor, args.image), start=1):
         print(
             f"{rank}. "
