@@ -16,6 +16,7 @@ import psutil
 import torch
 
 from birdly.inference.predict import (
+    InferenceBackendName,
     Predictor,
     load_predictor,
     predict_batch,
@@ -52,7 +53,7 @@ class BenchmarkResult:
 
 
 @dataclass(frozen=True)
-class PyTorchBackend:
+class InferenceBackend:
     predictor: Predictor
     cpu_threads: int | None = None
 
@@ -66,7 +67,7 @@ class PyTorchBackend:
 
     @property
     def precision(self) -> str:
-        return str(next(self.predictor.model.parameters()).dtype).removeprefix("torch.")
+        return self.predictor.precision
 
     def model_forward(self, image_batch: torch.Tensor) -> torch.Tensor:
         return self.predictor.model(image_batch)
@@ -199,7 +200,7 @@ def _summarize(
     batch_size: int,
     latencies: Sequence[float],
     warmup_total_ms: float,
-    backend: PyTorchBackend,
+    backend: InferenceBackend,
 ) -> BenchmarkResult:
     mean = sum(latencies) / len(latencies)
     return BenchmarkResult(
@@ -224,7 +225,7 @@ def _summarize(
 def _oom_result(
     mode: str,
     batch_size: int,
-    backend: PyTorchBackend,
+    backend: InferenceBackend,
     error: BaseException,
 ) -> BenchmarkResult:
     return BenchmarkResult(
@@ -254,7 +255,7 @@ def _benchmark_batches(
     batch_sizes: Sequence[int],
     warmup_iterations: int,
     iterations: int,
-    backend: PyTorchBackend,
+    backend: InferenceBackend,
     prepare_call: Callable[[int], Callable[[], Any]],
     timer: Callable[[Callable[[], Any], torch.device], float],
 ) -> list[BenchmarkResult]:
@@ -359,6 +360,7 @@ def _run_device_benchmark(
     iterations: int,
     cpu_threads: int | None = None,
     compile_model: bool = False,
+    inference_backend: InferenceBackendName = "pytorch",
 ) -> tuple[dict[str, Any], list[BenchmarkResult]]:
     if compile_model:
         torch.compiler.reset()
@@ -372,10 +374,15 @@ def _run_device_benchmark(
         raise ValueError("CPU thread count must be null for a CUDA benchmark")
 
     load_start = time.perf_counter()
-    predictor = load_predictor(device=device, compile_model=compile_model)
+    predictor = load_predictor(
+        device=device,
+        compile_model=compile_model,
+        backend=inference_backend,
+        cpu_threads=cpu_threads or 1,
+    )
     _sync(predictor.device)
     model_load_ms = (time.perf_counter() - load_start) * 1000.0
-    backend = PyTorchBackend(predictor, cpu_threads=cpu_threads)
+    backend = InferenceBackend(predictor, cpu_threads=cpu_threads)
     cpu_tensors = [preprocess_image(predictor, path) for path in image_paths]
 
     cold_batch = cpu_tensors[0].unsqueeze(0).to(predictor.device)
@@ -444,7 +451,10 @@ def run_benchmark(
     iterations: int = 50,
     output_directory: Path = DEFAULT_OUTPUT_DIRECTORY,
     compile_model: bool = False,
+    inference_backend: InferenceBackendName = "pytorch",
 ) -> dict[str, Any]:
+    if inference_backend == "onnxruntime" and compile_model:
+        raise ValueError("torch.compile cannot be combined with ONNX Runtime")
     if compile_model and warmup_iterations < 1:
         raise ValueError("Compiled benchmarks require at least one warmup iteration")
     environment = collect_environment()
@@ -453,9 +463,9 @@ def run_benchmark(
     print(json.dumps(environment, indent=2))
 
     device_configs: list[tuple[str, Sequence[int], int | None]] = []
-    if torch.cuda.is_available():
+    if inference_backend == "pytorch" and torch.cuda.is_available():
         device_configs.append(("cuda", cuda_batch_sizes, None))
-    else:
+    elif inference_backend == "pytorch":
         print("WARNING: CUDA is unavailable; the CUDA benchmark is skipped.")
     device_configs.extend(
         ("cpu", cpu_batch_sizes, cpu_threads) for cpu_threads in cpu_thread_counts
@@ -477,6 +487,7 @@ def run_benchmark(
             iterations=iterations,
             cpu_threads=cpu_threads,
             compile_model=compile_model,
+            inference_backend=inference_backend,
         )
         if device == "cuda":
             startup[device] = device_startup
@@ -496,6 +507,7 @@ def run_benchmark(
             "iterations": iterations,
             "output_directory": str(output_directory),
             "compile_model": compile_model,
+            "inference_backend": inference_backend,
         },
         "startup": startup,
         "input_paths": [str(path) for path in image_paths],
@@ -528,28 +540,44 @@ def _parse_args() -> dict[str, Any]:
     parser.add_argument("--warmup-iterations", type=int, default=10)
     parser.add_argument("--iterations", type=int, default=50)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIRECTORY)
+    parser.add_argument(
+        "--backend", choices=("pytorch", "onnxruntime"), default="pytorch"
+    )
+    parser.add_argument(
+        "--cpu-thread-counts",
+        nargs="+",
+        type=int,
+        default=list(DEFAULT_CPU_THREAD_COUNTS),
+    )
     parser.add_argument("--compile", action="store_true", dest="compile_model")
     args = parser.parse_args()
     cuda_batch_sizes = tuple(sorted(set(args.cuda_batch_sizes)))
     cpu_batch_sizes = tuple(sorted(set(args.cpu_batch_sizes)))
+    cpu_thread_counts = tuple(sorted(set(args.cpu_thread_counts)))
     if (
         not cuda_batch_sizes
         or cuda_batch_sizes[0] < 1
         or not cpu_batch_sizes
         or cpu_batch_sizes[0] < 1
+        or not cpu_thread_counts
+        or cpu_thread_counts[0] < 1
     ):
         parser.error("batch sizes must be positive")
     if args.warmup_iterations < 0 or args.iterations < 1:
         parser.error("warmup must not be negative and iterations must be positive")
     if args.compile_model and args.warmup_iterations < 1:
         parser.error("compiled benchmarks require at least one warmup iteration")
+    if args.backend == "onnxruntime" and args.compile_model:
+        parser.error("--compile cannot be combined with --backend onnxruntime")
     return {
         "cuda_batch_sizes": cuda_batch_sizes,
         "cpu_batch_sizes": cpu_batch_sizes,
+        "cpu_thread_counts": cpu_thread_counts,
         "warmup_iterations": args.warmup_iterations,
         "iterations": args.iterations,
         "output_directory": args.output_dir,
         "compile_model": args.compile_model,
+        "inference_backend": args.backend,
     }
 
 
