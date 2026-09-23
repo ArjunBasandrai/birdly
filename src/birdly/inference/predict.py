@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
@@ -112,37 +113,54 @@ def load_predictor(
     )
 
 
-def predict_image(
+def preprocess_image(predictor: Predictor, image_path: str | Path) -> torch.Tensor:
+    with Image.open(image_path) as image:
+        return predictor.transform(image.convert("RGB"))
+
+
+def predict_batch(
     predictor: Predictor,
-    image_path: str | Path,
+    image_paths: Sequence[str | Path],
     top_k: int = 5,
-) -> list[Prediction]:
+) -> list[list[Prediction]]:
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
+    if not image_paths:
+        raise ValueError("image_paths must not be empty")
 
-    with Image.open(image_path) as image:
-        image_tensor = predictor.transform(image.convert("RGB"))
-    image_tensor = image_tensor.unsqueeze(0).to(predictor.device)
+    image_batch = torch.stack(
+        [preprocess_image(predictor, image_path) for image_path in image_paths]
+    ).to(predictor.device)
 
     with torch.inference_mode():
-        logits = predictor.model(image_tensor)
+        logits = predictor.model(image_batch)
         probabilities = torch.softmax(logits, dim=1)
         scores, indices = probabilities.topk(
             min(top_k, len(predictor.class_to_taxon)), dim=1
         )
 
-    predictions: list[Prediction] = []
-    for index, score in zip(indices[0].tolist(), scores[0].tolist()):
-        class_index = int(index)
-        taxon_id = predictor.class_to_taxon[class_index]
-        predictions.append(
-            {
-                "species_name": predictor.taxon_to_name[taxon_id],
-                "taxon_id": taxon_id,
-                "score": float(score),
-            }
-        )
-    return predictions
+    batch_predictions: list[list[Prediction]] = []
+    for row_indices, row_scores in zip(indices.tolist(), scores.tolist()):
+        predictions: list[Prediction] = []
+        for index, score in zip(row_indices, row_scores):
+            taxon_id = predictor.class_to_taxon[int(index)]
+            predictions.append(
+                {
+                    "species_name": predictor.taxon_to_name[taxon_id],
+                    "taxon_id": taxon_id,
+                    "score": float(score),
+                }
+            )
+        batch_predictions.append(predictions)
+    return batch_predictions
+
+
+def predict_image(
+    predictor: Predictor,
+    image_path: str | Path,
+    top_k: int = 5,
+) -> list[Prediction]:
+    return predict_batch(predictor, [image_path], top_k)[0]
 
 
 def main() -> None:
