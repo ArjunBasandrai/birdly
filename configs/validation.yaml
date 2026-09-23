@@ -1,0 +1,5 @@
+validated_manifest: data/processed/validated_manifest.parquet
+validation_report: data/processed/validation_report.json
+image_data_version: 14fdb8a01c29673a5b2c3cb003cebaed.dir
+image_data_files: 233665
+image_data_bytes: 23479483721

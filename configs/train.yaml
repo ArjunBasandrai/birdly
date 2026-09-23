@@ -1,0 +1,64 @@
+model:
+  name: convnext_tiny
+  pretrained: true
+
+image:
+  size: 224
+
+augmentation:
+  crop_scale: [0.8, 1.0]
+  horizontal_flip: 0.5
+  color_jitter: 0.1
+  randaugment_ops: 2
+  randaugment_magnitude: 0
+  random_erasing: 0.05
+
+training:
+  epochs: 6
+  batch_size: 16
+  target_effective_batch_size: 32
+  accumulation_steps: 2
+  learning_rate: 0.0003
+  weight_decay: 0.05
+  label_smoothing: 0.1
+  warmup_epochs: 0.5
+  minimum_lr_ratio: 0.01
+  num_workers: 2
+  prefetch_factor: 2
+  amp: true
+  deterministic: true
+  seed: 42
+  gradient_clip_norm: 1.0
+  checkpoint_interval_updates: 500
+  minimum_epochs: 3
+  early_stopping_patience: 2
+  prune_margin: 0.03
+  max_minutes: 600
+
+evaluation:
+  selection_metric: macro_f1
+  calibration_bins: 15
+
+safety:
+  minimum_free_ram_gb: 1.5
+  minimum_free_disk_gb: 8.0
+  maximum_gpu_temperature_c: 87
+  poll_seconds: 60
+
+benchmark:
+  candidate_image_sizes: [224, 192, 160]
+  candidate_batch_sizes: [64, 48, 32, 24, 16, 8]
+  warmup_steps: 2
+  measured_steps: 10
+  maximum_vram_fraction: 0.72
+  target_epoch_minutes: 240
+  num_workers: 0
+
+runner:
+  cycle_id: birdly-research-v3
+  maximum_oom_retries: 1
+  maximum_safety_pauses: 12
+  safety_pause_seconds: 300
+  cycle_max_hours: 120
+  smoke_samples_per_class: 2
+  finalist_seeds: [1337, 2027]

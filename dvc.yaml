@@ -48,3 +48,54 @@ stages:
       - ${image_data_root}:
           cache: false
           persist: true
+
+  validate_dataset:
+    cmd: uv run python -m birdly.data.validate_dataset
+    deps:
+      - src/birdly/data/validate_dataset.py
+      - src/birdly/data/utils.py
+      - configs/data.yaml
+      - configs/validation.yaml
+      - params.yaml
+      - data/processed/manifest.parquet
+    outs:
+      - data/processed/validated_manifest.parquet
+      - data/processed/validation_report.json
+
+  benchmark_training:
+    cmd: uv run python -m birdly.training.benchmark
+    deps:
+      - src/birdly/data/dataset.py
+      - src/birdly/training/benchmark.py
+      - src/birdly/training/config.py
+      - src/birdly/training/io_utils.py
+      - src/birdly/training/model.py
+      - configs/train.yaml
+      - data/processed/validated_manifest.parquet
+      - data/processed/validation_report.json
+    outs:
+      - reports/research/benchmark.json
+
+  research_cycle:
+    cmd: uv run python -m birdly.training.runner
+    deps:
+      - src/birdly/data/dataset.py
+      - src/birdly/training/config.py
+      - src/birdly/training/evaluate.py
+      - src/birdly/training/io_utils.py
+      - src/birdly/training/metrics.py
+      - src/birdly/training/model.py
+      - src/birdly/training/resources.py
+      - src/birdly/training/runner.py
+      - src/birdly/training/train.py
+      - configs/research_plan.yaml
+      - configs/train.yaml
+      - reports/research/benchmark.json
+      - data/processed/validated_manifest.parquet
+      - data/processed/validation_report.json
+    outs:
+      - reports/research/baseline_test_metrics.json
+      - reports/research/experiment_ledger.jsonl
+      - reports/research/final_report.json
+      - reports/research/selection.json
+      - reports/research/winner_test_metrics.json

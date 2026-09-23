@@ -4,7 +4,6 @@ import polars as pl
 
 from birdly.data.utils import load_config
 
-
 MANIFEST_COLUMNS = [
     "photo_uuid",
     "photo_id",

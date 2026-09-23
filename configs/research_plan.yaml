@@ -1,0 +1,63 @@
+baseline:
+  run_id: baseline
+  reason: Establish the full-data ConvNeXt Tiny reference with the measured safe batch size.
+
+trials:
+  - run_id: trial-01-lr-low
+    parent: baseline
+    reason: Test a three-times lower learning rate while all other settings stay equal.
+    overrides:
+      training:
+        learning_rate: 0.0001
+
+  - run_id: trial-02-lr-high
+    parent: baseline
+    reason: Test a three-times higher learning rate while all other settings stay equal.
+    overrides:
+      training:
+        learning_rate: 0.0009
+
+  - run_id: trial-03-weight-decay-low
+    parent: best_so_far
+    reason: Test lower weight decay from the best learning-rate result.
+    overrides:
+      training:
+        weight_decay: 0.01
+
+  - run_id: trial-04-weight-decay-high
+    parent: best_so_far
+    reason: Test higher weight decay from the current best result.
+    overrides:
+      training:
+        weight_decay: 0.1
+
+  - run_id: trial-05-augmentation
+    parent: best_so_far
+    reason: Test stronger color, RandAugment, crop, and erasing regularization from the current best result.
+    overrides:
+      augmentation:
+        crop_scale: [0.65, 1.0]
+        color_jitter: 0.2
+        randaugment_magnitude: 7
+        random_erasing: 0.15
+
+  - run_id: trial-06-resolution-192
+    parent: best_so_far
+    reason: Test lower spatial resolution from the current best result with the same effective batch size.
+    overrides:
+      image:
+        size: 192
+
+  - run_id: trial-07-mobilenet-v3
+    parent: best_so_far
+    reason: Test a lower-cost pretrained MobileNet V3 Large backbone from the current best result.
+    overrides:
+      model:
+        name: mobilenet_v3_large
+
+  - run_id: trial-08-efficientnet-b0
+    parent: best_so_far
+    reason: Test a compact pretrained EfficientNet B0 backbone from the current best result.
+    overrides:
+      model:
+        name: efficientnet_b0

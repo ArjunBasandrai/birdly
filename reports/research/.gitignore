@@ -1,0 +1,8 @@
+/benchmark.json
+/baseline_test_metrics.json
+/experiment_ledger.jsonl
+/final_report.json
+/selection.json
+/winner_test_metrics.json
+/final_model_manifest.json
+/final_model_test_metrics.json

@@ -1,1 +1,3 @@
 /manifest.parquet
+/validated_manifest.parquet
+/validation_report.json

@@ -115,3 +115,159 @@ stages:
       md5: 14fdb8a01c29673a5b2c3cb003cebaed.dir
       size: 23479483721
       nfiles: 233665
+  validate_dataset:
+    cmd: uv run python -m birdly.data.validate_dataset
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 02f7fba4fc13a8390cfff5016b6b4c5c
+      size: 434
+    - path: configs/validation.yaml
+      hash: md5
+      md5: 48c6e71f6a903bfeabd6e78aa6e11f9f
+      size: 236
+    - path: data/processed/manifest.parquet
+      hash: md5
+      md5: bd32f0aac0f26e02df2c3cc7770cbcc8
+      size: 18959063
+    - path: params.yaml
+      hash: md5
+      md5: 88f41fb54c7af1cad080607a5ca5684c
+      size: 157
+    - path: src/birdly/data/utils.py
+      hash: md5
+      md5: 9e8b719d30741557e0d5ead1f4e595fb
+      size: 346
+    - path: src/birdly/data/validate_dataset.py
+      hash: md5
+      md5: d75b60fb77072219f75fb8d1a8d56cf9
+      size: 12526
+    outs:
+    - path: data/processed/validated_manifest.parquet
+      hash: md5
+      md5: cba9ca1d000def28a77c9d22cbbf1b5c
+      size: 21301003
+    - path: data/processed/validation_report.json
+      hash: md5
+      md5: 19b15dfe906e8d8b0d243eccf1b569ca
+      size: 6255
+  benchmark_training:
+    cmd: uv run python -m birdly.training.benchmark
+    deps:
+    - path: configs/train.yaml
+      hash: md5
+      md5: 3ddf7a1f4143596bd21fc96e44db2b8d
+      size: 1331
+    - path: data/processed/validated_manifest.parquet
+      hash: md5
+      md5: cba9ca1d000def28a77c9d22cbbf1b5c
+      size: 21301003
+    - path: data/processed/validation_report.json
+      hash: md5
+      md5: 19b15dfe906e8d8b0d243eccf1b569ca
+      size: 6255
+    - path: src/birdly/data/dataset.py
+      hash: md5
+      md5: 11724417e8ef6f63dc7e0b63a6e3e6bc
+      size: 4934
+    - path: src/birdly/training/benchmark.py
+      hash: md5
+      md5: c031d7c7157ea34b5db1cfeb8091a187
+      size: 7927
+    - path: src/birdly/training/config.py
+      hash: md5
+      md5: b91aadabc6b73db3d575401014d10cd5
+      size: 1750
+    - path: src/birdly/training/io_utils.py
+      hash: md5
+      md5: 404dde4a4696e1c423bef364122c1f05
+      size: 3025
+    - path: src/birdly/training/model.py
+      hash: md5
+      md5: eeef42335c5b14d3b2911036c2ac6c06
+      size: 1708
+    outs:
+    - path: reports/research/benchmark.json
+      hash: md5
+      md5: e5c8023efb88f293aa4bf4646733d9a5
+      size: 2934
+  research_cycle:
+    cmd: uv run python -m birdly.training.runner
+    deps:
+    - path: configs/research_plan.yaml
+      hash: md5
+      md5: 7f4bb9abea023e1389d59a0d7a0f6653
+      size: 1943
+    - path: configs/train.yaml
+      hash: md5
+      md5: 3ddf7a1f4143596bd21fc96e44db2b8d
+      size: 1331
+    - path: data/processed/validated_manifest.parquet
+      hash: md5
+      md5: cba9ca1d000def28a77c9d22cbbf1b5c
+      size: 21301003
+    - path: data/processed/validation_report.json
+      hash: md5
+      md5: 19b15dfe906e8d8b0d243eccf1b569ca
+      size: 6255
+    - path: reports/research/benchmark.json
+      hash: md5
+      md5: e5c8023efb88f293aa4bf4646733d9a5
+      size: 2934
+    - path: src/birdly/data/dataset.py
+      hash: md5
+      md5: 11724417e8ef6f63dc7e0b63a6e3e6bc
+      size: 4934
+    - path: src/birdly/training/config.py
+      hash: md5
+      md5: b91aadabc6b73db3d575401014d10cd5
+      size: 1750
+    - path: src/birdly/training/evaluate.py
+      hash: md5
+      md5: d247c5d2e9c12b597c1b02b8b84a1e14
+      size: 2640
+    - path: src/birdly/training/io_utils.py
+      hash: md5
+      md5: 404dde4a4696e1c423bef364122c1f05
+      size: 3025
+    - path: src/birdly/training/metrics.py
+      hash: md5
+      md5: ca5b379be863835d7d0e80a2e767b422
+      size: 5000
+    - path: src/birdly/training/model.py
+      hash: md5
+      md5: eeef42335c5b14d3b2911036c2ac6c06
+      size: 1708
+    - path: src/birdly/training/resources.py
+      hash: md5
+      md5: 7cbc7da71b89b3c388b7a08a70e2e487
+      size: 3733
+    - path: src/birdly/training/runner.py
+      hash: md5
+      md5: aedd20325d51d338cd6b91e35a8075cb
+      size: 16529
+    - path: src/birdly/training/train.py
+      hash: md5
+      md5: 96d08aeb6f3245feb80af854f7d46673
+      size: 23975
+    outs:
+    - path: reports/research/baseline_test_metrics.json
+      hash: md5
+      md5: 55efa6ca63bd56fa6b68f91d35a582ca
+      size: 53024
+    - path: reports/research/experiment_ledger.jsonl
+      hash: md5
+      md5: 7bde1e0c609ebe27b1feac95f3bab686
+      size: 452117
+    - path: reports/research/final_report.json
+      hash: md5
+      md5: 2312a394c54a32d58328347585b8c83e
+      size: 859147
+    - path: reports/research/selection.json
+      hash: md5
+      md5: 44ed448a40d7a5853e759307928c2b7d
+      size: 2166
+    - path: reports/research/winner_test_metrics.json
+      hash: md5
+      md5: aaa91fd00208a4138b1ef8d1c7d68190
+      size: 53006
