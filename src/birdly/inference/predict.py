@@ -205,6 +205,19 @@ def preprocess_image(predictor: Predictor, image_path: str | Path) -> torch.Tens
         return predictor.transform(image.convert("RGB"))
 
 
+def predict_logits(
+    predictor: Predictor,
+    image_paths: Sequence[str | Path],
+) -> torch.Tensor:
+    if not image_paths:
+        raise ValueError("image_paths must not be empty")
+    image_batch = torch.stack(
+        [preprocess_image(predictor, image_path) for image_path in image_paths]
+    ).to(predictor.device)
+    with torch.inference_mode():
+        return predictor.model(image_batch)
+
+
 def predict_batch(
     predictor: Predictor,
     image_paths: Sequence[str | Path],
@@ -212,15 +225,9 @@ def predict_batch(
 ) -> list[list[Prediction]]:
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
-    if not image_paths:
-        raise ValueError("image_paths must not be empty")
-
-    image_batch = torch.stack(
-        [preprocess_image(predictor, image_path) for image_path in image_paths]
-    ).to(predictor.device)
 
     with torch.inference_mode():
-        logits = predictor.model(image_batch)
+        logits = predict_logits(predictor, image_paths)
         probabilities = torch.softmax(logits, dim=1)
         scores, indices = probabilities.topk(
             min(top_k, len(predictor.class_to_taxon)), dim=1
