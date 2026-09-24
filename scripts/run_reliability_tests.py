@@ -780,6 +780,11 @@ def main() -> int:
             "sha256": _file_sha256(image_path) if image_path.is_file() else None,
         },
         "maximum_upload_bytes": args.maximum_upload_bytes,
+        "metrics_snapshots": {
+            "after": "after request cases and before an optional target restart",
+            "before": "before request cases",
+            "final": "after all cases, including an optional target restart",
+        },
         "request_timeout_seconds": args.request_timeout_seconds,
         "startup_timeout_seconds": args.startup_timeout_seconds,
         "platform": platform.platform(),
@@ -969,6 +974,20 @@ def main() -> int:
                     "missing_model_health",
                     "use --docker-missing-model-test",
                 )
+            after_text, after_metrics = _fetch_metrics(args.api_url)
+            (results_directory / "api-metrics-after.prom").write_text(
+                after_text, encoding="utf-8"
+            )
+            _write_json(results_directory / "api-metrics-after.json", after_metrics)
+            _write_json(
+                results_directory / "api-metrics-delta.json",
+                _metric_delta(before_metrics, after_metrics),
+            )
+            _run_named_test(
+                results,
+                "prometheus_failure_counters",
+                lambda: _test_metrics_increase(before_metrics, after_metrics),
+            )
             if args.docker_restart_tests:
                 _run_named_test(
                     results,
@@ -986,28 +1005,27 @@ def main() -> int:
                     "container_restart_recovery",
                     "use --docker-restart-tests",
                 )
-
-            _, intermediate_metrics = _fetch_metrics(args.api_url)
-            _run_named_test(
-                results,
-                "prometheus_failure_counters",
-                lambda: _test_metrics_increase(before_metrics, intermediate_metrics),
-            )
             _run_named_test(
                 results,
                 "active_inference_returns_to_zero",
                 lambda: _test_active_inference_zero(args.api_url),
             )
+        else:
+            after_text, after_metrics = _fetch_metrics(args.api_url)
+            (results_directory / "api-metrics-after.prom").write_text(
+                after_text, encoding="utf-8"
+            )
+            _write_json(results_directory / "api-metrics-after.json", after_metrics)
+            _write_json(
+                results_directory / "api-metrics-delta.json",
+                _metric_delta(before_metrics, after_metrics),
+            )
 
-        after_text, after_metrics = _fetch_metrics(args.api_url)
-        (results_directory / "api-metrics-after.prom").write_text(
-            after_text, encoding="utf-8"
+        final_text, final_metrics = _fetch_metrics(args.api_url)
+        (results_directory / "api-metrics-final.prom").write_text(
+            final_text, encoding="utf-8"
         )
-        _write_json(results_directory / "api-metrics-after.json", after_metrics)
-        _write_json(
-            results_directory / "api-metrics-delta.json",
-            _metric_delta(before_metrics, after_metrics),
-        )
+        _write_json(results_directory / "api-metrics-final.json", final_metrics)
         _write_json(results_directory / "configuration.json", metadata)
         _write_json(
             results_directory / "results.json", [asdict(result) for result in results]
