@@ -5,7 +5,7 @@ maximum_upload_bytes: 10485760
 maximum_image_width: 4096
 maximum_image_height: 4096
 request_timeout_seconds: 30
-maximum_inference_concurrency: 1
+maximum_inference_concurrency: 4
 cpu_threads: 2
 allowed_cors_origins:
   - http://localhost:3000
