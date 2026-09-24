@@ -388,7 +388,7 @@ def _run_device_benchmark(
 
     gpu_memory_baseline_mib = (
         _device_gpu_memory_used_mib(torch.device(device))
-        if device == "cuda" and inference_backend == "onnxruntime-cuda"
+        if device == "cuda" and inference_backend in ("onnxruntime-cuda", "tensorrt")
         else None
     )
     load_start = time.perf_counter()
@@ -461,6 +461,9 @@ def _run_device_benchmark(
         "compile_and_first_inference_ms": cold_inference_ms if compile_model else None,
         "warmed_model_inference_mean_ms": warmed_latency_ms,
     }
+    engine_size_bytes = getattr(predictor.model, "engine_size_bytes", None)
+    if engine_size_bytes is not None:
+        startup["engine_size_bytes"] = engine_size_bytes
     return startup, model_results + end_to_end_results
 
 
@@ -482,6 +485,7 @@ def run_benchmark(
         in (
             "pytorch-fp16",
             "onnxruntime-cuda",
+            "tensorrt",
         )
         and not torch.cuda.is_available()
     ):
@@ -495,13 +499,13 @@ def run_benchmark(
 
     device_configs: list[tuple[str, Sequence[int], int | None]] = []
     if (
-        inference_backend in ("pytorch", "pytorch-fp16", "onnxruntime-cuda")
+        inference_backend in ("pytorch", "pytorch-fp16", "onnxruntime-cuda", "tensorrt")
         and torch.cuda.is_available()
     ):
         device_configs.append(("cuda", cuda_batch_sizes, None))
     elif inference_backend in ("pytorch", "pytorch-fp16"):
         print("WARNING: CUDA is unavailable; the CUDA benchmark is skipped.")
-    if inference_backend not in ("pytorch-fp16", "onnxruntime-cuda"):
+    if inference_backend not in ("pytorch-fp16", "onnxruntime-cuda", "tensorrt"):
         device_configs.extend(
             ("cpu", cpu_batch_sizes, cpu_threads) for cpu_threads in cpu_thread_counts
         )
@@ -583,6 +587,7 @@ def _parse_args() -> dict[str, Any]:
             "onnxruntime",
             "onnxruntime-cuda",
             "onnxruntime-int8",
+            "tensorrt",
         ),
         default="pytorch",
     )

@@ -21,6 +21,7 @@ from birdly.inference.predict import (
     DEFAULT_CLASS_MAPPING_PATH,
     DEFAULT_ONNX_INT8_MODEL_PATH,
     DEFAULT_ONNX_MODEL_PATH,
+    DEFAULT_TENSORRT_ENGINE_PATH,
     InferenceBackendName,
     Predictor,
     inference_context,
@@ -247,7 +248,7 @@ def evaluate(
 
     if backend in ("onnxruntime", "onnxruntime-int8"):
         device = torch.device("cpu")
-    elif backend in ("pytorch-fp16", "onnxruntime-cuda"):
+    elif backend in ("pytorch-fp16", "onnxruntime-cuda", "tensorrt"):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is unavailable")
         device = torch.device("cuda")
@@ -300,6 +301,8 @@ def evaluate(
 
     if predictor.backend == "onnxruntime-int8":
         model_artifact_path = DEFAULT_ONNX_INT8_MODEL_PATH
+    elif predictor.backend == "tensorrt-fp16":
+        model_artifact_path = DEFAULT_TENSORRT_ENGINE_PATH
     elif predictor.backend.startswith("onnxruntime"):
         model_artifact_path = DEFAULT_ONNX_MODEL_PATH
     else:
@@ -387,6 +390,7 @@ def _parse_args() -> argparse.Namespace:
             "onnxruntime",
             "onnxruntime-cuda",
             "onnxruntime-int8",
+            "tensorrt",
         ),
         default="pytorch",
     )

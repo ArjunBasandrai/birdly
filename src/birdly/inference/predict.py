@@ -28,6 +28,8 @@ DEFAULT_ONNX_MODEL_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-fp32.onnx"
 DEFAULT_ONNX_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata.json"
 DEFAULT_ONNX_INT8_MODEL_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-int8.onnx"
 DEFAULT_ONNX_INT8_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata-int8.json"
+DEFAULT_TENSORRT_ENGINE_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-fp16.engine"
+DEFAULT_TENSORRT_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata-tensorrt-fp16.json"
 DEFAULT_COMPILE_MODE = "default"
 InferenceBackendName = Literal[
     "pytorch",
@@ -35,6 +37,7 @@ InferenceBackendName = Literal[
     "onnxruntime",
     "onnxruntime-cuda",
     "onnxruntime-int8",
+    "tensorrt",
 ]
 
 
@@ -79,6 +82,8 @@ def load_predictor(
     onnx_metadata_path: str | Path = DEFAULT_ONNX_METADATA_PATH,
     onnx_int8_model_path: str | Path = DEFAULT_ONNX_INT8_MODEL_PATH,
     onnx_int8_metadata_path: str | Path = DEFAULT_ONNX_INT8_METADATA_PATH,
+    tensorrt_engine_path: str | Path = DEFAULT_TENSORRT_ENGINE_PATH,
+    tensorrt_metadata_path: str | Path = DEFAULT_TENSORRT_METADATA_PATH,
     preprocessing_path: str | Path = DEFAULT_PREPROCESSING_PATH,
     cpu_threads: int = 1,
 ) -> Predictor:
@@ -91,14 +96,15 @@ def load_predictor(
         "onnxruntime",
         "onnxruntime-cuda",
         "onnxruntime-int8",
+        "tensorrt",
     ):
         raise ValueError(f"Unknown inference backend: {backend}")
-    if backend == "pytorch-fp16":
+    if backend in ("pytorch-fp16", "tensorrt"):
         if compile_model:
-            raise ValueError("torch.compile cannot be combined with FP16 inference")
+            raise ValueError("torch.compile cannot be combined with this backend")
         selected_device = torch.device(device or "cuda")
         if selected_device.type != "cuda":
-            raise ValueError("PyTorch FP16 inference requires CUDA")
+            raise ValueError(f"{backend} inference requires CUDA")
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is unavailable")
     elif backend in ("onnxruntime", "onnxruntime-int8"):
@@ -143,7 +149,32 @@ def load_predictor(
     if set(taxon_to_name) != set(class_to_taxon.values()):
         raise ValueError("Species names do not match the class mapping")
 
-    if backend in ("onnxruntime", "onnxruntime-cuda", "onnxruntime-int8"):
+    if backend == "tensorrt":
+        from birdly.inference.tensorrt_backend import load_tensorrt_model
+
+        metadata = json.loads(Path(tensorrt_metadata_path).read_text(encoding="utf-8"))
+        preprocessing = json.loads(Path(preprocessing_path).read_text(encoding="utf-8"))
+        if (
+            metadata["source_checkpoint_sha256"]
+            != preprocessing["source_checkpoint_sha256"]
+        ):
+            raise ValueError("TensorRT source checkpoint does not match preprocessing")
+        if metadata["class_mapping_sha256"] != _file_sha256(class_mapping_path):
+            raise ValueError("TensorRT class mapping metadata does not match")
+        if metadata["preprocessing_sha256"] != _file_sha256(Path(preprocessing_path)):
+            raise ValueError("TensorRT preprocessing metadata does not match")
+        if int(metadata["class_count"]) != len(class_to_taxon):
+            raise ValueError("TensorRT class count does not match the class mapping")
+        model = load_tensorrt_model(
+            tensorrt_engine_path,
+            device=selected_device,
+        )
+        model_name = str(metadata["model_name"])
+        backend_label = "tensorrt-fp16"
+        precision = "float16"
+        compile_mode = None
+        autocast_dtype = None
+    elif backend in ("onnxruntime", "onnxruntime-cuda", "onnxruntime-int8"):
         selected_model_path = Path(
             onnx_int8_model_path if backend == "onnxruntime-int8" else onnx_model_path
         )
@@ -323,6 +354,7 @@ def main() -> None:
             "onnxruntime",
             "onnxruntime-cuda",
             "onnxruntime-int8",
+            "tensorrt",
         ),
         default="pytorch",
     )

@@ -24,6 +24,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "sqlalchemy>=2.0",
     "structlog>=26.1.0",
+    "tensorrt-cu13==11.3.0.99",
     "torch==2.14.0",
     "torchvision==0.29.0",
     "triton-windows>=3.8,<3.9; sys_platform == 'win32'",
