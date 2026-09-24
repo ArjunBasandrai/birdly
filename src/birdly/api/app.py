@@ -32,7 +32,7 @@ from birdly.inference.predict import (
     predict_image,
 )
 
-LOGGER = logging.getLogger("birdly.api")
+LOGGER = logging.getLogger("uvicorn.error.birdly")
 LOGGER.setLevel(logging.INFO)
 SUPPORTED_IMAGE_FORMATS = ("JPEG", "PNG", "WEBP")
 SUPPORTED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
