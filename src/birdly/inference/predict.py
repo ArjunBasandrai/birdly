@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 from collections.abc import Callable, Sequence
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
@@ -30,6 +31,7 @@ DEFAULT_ONNX_INT8_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata-int8.json"
 DEFAULT_COMPILE_MODE = "default"
 InferenceBackendName = Literal[
     "pytorch",
+    "pytorch-fp16",
     "onnxruntime",
     "onnxruntime-cuda",
     "onnxruntime-int8",
@@ -53,6 +55,7 @@ class Predictor:
     backend: str
     precision: str
     compile_mode: str | None
+    autocast_dtype: torch.dtype | None
     image_size: int
     preprocessing: dict[str, Any]
 
@@ -84,12 +87,21 @@ def load_predictor(
     species_names_path = Path(species_names_path)
     if backend not in (
         "pytorch",
+        "pytorch-fp16",
         "onnxruntime",
         "onnxruntime-cuda",
         "onnxruntime-int8",
     ):
         raise ValueError(f"Unknown inference backend: {backend}")
-    if backend in ("onnxruntime", "onnxruntime-int8"):
+    if backend == "pytorch-fp16":
+        if compile_model:
+            raise ValueError("torch.compile cannot be combined with FP16 inference")
+        selected_device = torch.device(device or "cuda")
+        if selected_device.type != "cuda":
+            raise ValueError("PyTorch FP16 inference requires CUDA")
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is unavailable")
+    elif backend in ("onnxruntime", "onnxruntime-int8"):
         if compile_model:
             raise ValueError("torch.compile is not available for ONNX Runtime")
         if device is not None and torch.device(device).type != "cpu":
@@ -167,6 +179,7 @@ def load_predictor(
             backend_label = "onnxruntime-fp32"
         precision = "int8" if backend == "onnxruntime-int8" else "float32"
         compile_mode = None
+        autocast_dtype = None
     else:
         checkpoint = torch.load(
             checkpoint_path,
@@ -189,11 +202,20 @@ def load_predictor(
         model.to(selected_device)
         model.eval()
         model_name = type(model).__name__
-        compile_mode = DEFAULT_COMPILE_MODE if compile_model else None
-        if compile_mode is not None:
-            model = torch.compile(model, mode=compile_mode)
-        backend_label = "pytorch-compile-inductor" if compile_model else "pytorch-eager"
-        precision = str(next(model.parameters()).dtype).removeprefix("torch.")
+        if backend == "pytorch-fp16":
+            compile_mode = None
+            autocast_dtype = torch.float16
+            backend_label = "pytorch-fp16"
+            precision = "float16"
+        else:
+            compile_mode = DEFAULT_COMPILE_MODE if compile_model else None
+            if compile_mode is not None:
+                model = torch.compile(model, mode=compile_mode)
+            backend_label = (
+                "pytorch-compile-inductor" if compile_model else "pytorch-eager"
+            )
+            precision = str(next(model.parameters()).dtype).removeprefix("torch.")
+            autocast_dtype = None
         preprocessing = checkpoint["preprocessing"]
 
     image_size = int(preprocessing["image_size"])
@@ -218,6 +240,7 @@ def load_predictor(
         backend=backend_label,
         precision=precision,
         compile_mode=compile_mode,
+        autocast_dtype=autocast_dtype,
         image_size=image_size,
         preprocessing=preprocessing,
     )
@@ -226,6 +249,15 @@ def load_predictor(
 def preprocess_image(predictor: Predictor, image_path: str | Path) -> torch.Tensor:
     with Image.open(image_path) as image:
         return predictor.transform(image.convert("RGB"))
+
+
+def inference_context(predictor: Predictor):
+    if predictor.autocast_dtype is None:
+        return nullcontext()
+    return torch.autocast(
+        device_type=predictor.device.type,
+        dtype=predictor.autocast_dtype,
+    )
 
 
 def predict_logits(
@@ -237,8 +269,8 @@ def predict_logits(
     image_batch = torch.stack(
         [preprocess_image(predictor, image_path) for image_path in image_paths]
     ).to(predictor.device)
-    with torch.inference_mode():
-        return predictor.model(image_batch)
+    with torch.inference_mode(), inference_context(predictor):
+        return predictor.model(image_batch).float()
 
 
 def predict_batch(
@@ -287,6 +319,7 @@ def main() -> None:
         "--backend",
         choices=(
             "pytorch",
+            "pytorch-fp16",
             "onnxruntime",
             "onnxruntime-cuda",
             "onnxruntime-int8",

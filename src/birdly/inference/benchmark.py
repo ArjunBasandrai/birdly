@@ -18,6 +18,7 @@ import torch
 from birdly.inference.predict import (
     InferenceBackendName,
     Predictor,
+    inference_context,
     load_predictor,
     predict_batch,
     preprocess_image,
@@ -276,7 +277,7 @@ def _benchmark_batches(
     for batch_size in batch_sizes:
         try:
             call = prepare_call(batch_size)
-            with torch.inference_mode():
+            with torch.inference_mode(), inference_context(backend.predictor):
                 _sync(device)
                 warmup_start = time.perf_counter()
                 for _ in range(warmup_iterations):
@@ -409,7 +410,7 @@ def _run_device_benchmark(
     cold_batch = cpu_tensors[0].unsqueeze(0).to(predictor.device)
     _sync(predictor.device)
     cold_timer = _end_to_end_timer if compile_model else _model_timer
-    with torch.inference_mode():
+    with torch.inference_mode(), inference_context(predictor):
         cold_inference_ms = cold_timer(
             lambda: backend.model_forward(cold_batch), predictor.device
         )
@@ -475,8 +476,15 @@ def run_benchmark(
     inference_backend: InferenceBackendName = "pytorch",
 ) -> dict[str, Any]:
     if inference_backend != "pytorch" and compile_model:
-        raise ValueError("torch.compile cannot be combined with ONNX Runtime")
-    if inference_backend == "onnxruntime-cuda" and not torch.cuda.is_available():
+        raise ValueError("torch.compile requires the PyTorch FP32 backend")
+    if (
+        inference_backend
+        in (
+            "pytorch-fp16",
+            "onnxruntime-cuda",
+        )
+        and not torch.cuda.is_available()
+    ):
         raise RuntimeError("CUDA is unavailable")
     if compile_model and warmup_iterations < 1:
         raise ValueError("Compiled benchmarks require at least one warmup iteration")
@@ -487,13 +495,13 @@ def run_benchmark(
 
     device_configs: list[tuple[str, Sequence[int], int | None]] = []
     if (
-        inference_backend in ("pytorch", "onnxruntime-cuda")
+        inference_backend in ("pytorch", "pytorch-fp16", "onnxruntime-cuda")
         and torch.cuda.is_available()
     ):
         device_configs.append(("cuda", cuda_batch_sizes, None))
-    elif inference_backend == "pytorch":
+    elif inference_backend in ("pytorch", "pytorch-fp16"):
         print("WARNING: CUDA is unavailable; the CUDA benchmark is skipped.")
-    if inference_backend != "onnxruntime-cuda":
+    if inference_backend not in ("pytorch-fp16", "onnxruntime-cuda"):
         device_configs.extend(
             ("cpu", cpu_batch_sizes, cpu_threads) for cpu_threads in cpu_thread_counts
         )
@@ -571,6 +579,7 @@ def _parse_args() -> dict[str, Any]:
         "--backend",
         choices=(
             "pytorch",
+            "pytorch-fp16",
             "onnxruntime",
             "onnxruntime-cuda",
             "onnxruntime-int8",
@@ -602,7 +611,7 @@ def _parse_args() -> dict[str, Any]:
     if args.compile_model and args.warmup_iterations < 1:
         parser.error("compiled benchmarks require at least one warmup iteration")
     if args.backend != "pytorch" and args.compile_model:
-        parser.error("--compile cannot be combined with --backend onnxruntime")
+        parser.error("--compile requires --backend pytorch")
     return {
         "cuda_batch_sizes": cuda_batch_sizes,
         "cpu_batch_sizes": cpu_batch_sizes,

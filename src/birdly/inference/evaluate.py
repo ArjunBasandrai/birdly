@@ -23,6 +23,7 @@ from birdly.inference.predict import (
     DEFAULT_ONNX_MODEL_PATH,
     InferenceBackendName,
     Predictor,
+    inference_context,
     load_predictor,
     predict_logits,
 )
@@ -115,7 +116,7 @@ def _evaluate_batches(
     started = time.perf_counter()
     prediction_count = 0
 
-    with torch.inference_mode():
+    with torch.inference_mode(), inference_context(predictor):
         for offset in range(0, len(rows), batch_size):
             batch = rows[offset : offset + batch_size]
             image_paths = [path for path, _ in batch]
@@ -246,7 +247,7 @@ def evaluate(
 
     if backend in ("onnxruntime", "onnxruntime-int8"):
         device = torch.device("cpu")
-    elif backend == "onnxruntime-cuda":
+    elif backend in ("pytorch-fp16", "onnxruntime-cuda"):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is unavailable")
         device = torch.device("cuda")
@@ -382,6 +383,7 @@ def _parse_args() -> argparse.Namespace:
         "--backend",
         choices=(
             "pytorch",
+            "pytorch-fp16",
             "onnxruntime",
             "onnxruntime-cuda",
             "onnxruntime-int8",
