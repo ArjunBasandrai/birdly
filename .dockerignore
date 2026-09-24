@@ -1,0 +1,15 @@
+*
+!Dockerfile
+!requirements-api.txt
+!configs/
+!configs/api.yaml
+!src/
+!src/birdly/
+!src/birdly/__init__.py
+!src/birdly/api/
+!src/birdly/api/**
+!src/birdly/inference/
+!src/birdly/inference/__init__.py
+!src/birdly/inference/onnx_backend.py
+!src/birdly/inference/predict.py
+!src/birdly/inference/species_names.json

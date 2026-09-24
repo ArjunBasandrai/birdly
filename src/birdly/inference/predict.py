@@ -14,7 +14,6 @@ from PIL import Image
 from torchvision import transforms
 
 from birdly.inference.onnx_backend import load_onnx_runtime_model
-from birdly.training.model import build_model
 
 DEFAULT_MODEL_DIRECTORY = Path(
     "B:/birdly-training/birdly-research-v3/runs/trial-01-lr-low-seed-2027"
@@ -212,6 +211,8 @@ def load_predictor(
         compile_mode = None
         autocast_dtype = None
     else:
+        from birdly.training.model import build_model
+
         checkpoint = torch.load(
             checkpoint_path,
             map_location="cpu",
@@ -277,7 +278,12 @@ def load_predictor(
     )
 
 
-def preprocess_image(predictor: Predictor, image_path: str | Path) -> torch.Tensor:
+def preprocess_image(
+    predictor: Predictor,
+    image_path: str | Path | Image.Image,
+) -> torch.Tensor:
+    if isinstance(image_path, Image.Image):
+        return predictor.transform(image_path.convert("RGB"))
     with Image.open(image_path) as image:
         return predictor.transform(image.convert("RGB"))
 
@@ -293,7 +299,7 @@ def inference_context(predictor: Predictor):
 
 def predict_logits(
     predictor: Predictor,
-    image_paths: Sequence[str | Path],
+    image_paths: Sequence[str | Path | Image.Image],
 ) -> torch.Tensor:
     if not image_paths:
         raise ValueError("image_paths must not be empty")
@@ -306,7 +312,7 @@ def predict_logits(
 
 def predict_batch(
     predictor: Predictor,
-    image_paths: Sequence[str | Path],
+    image_paths: Sequence[str | Path | Image.Image],
     top_k: int = 5,
 ) -> list[list[Prediction]]:
     if top_k < 1:
@@ -337,7 +343,7 @@ def predict_batch(
 
 def predict_image(
     predictor: Predictor,
-    image_path: str | Path,
+    image_path: str | Path | Image.Image,
     top_k: int = 5,
 ) -> list[Prediction]:
     return predict_batch(predictor, [image_path], top_k)[0]

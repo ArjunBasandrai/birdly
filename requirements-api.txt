@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi==0.141.1
+numpy==2.5.2
+onnxruntime==1.30.0
+pillow==12.3.0
+prometheus-client==0.23.1
+python-multipart==0.0.32
+pyyaml==6.0.3
+torch==2.14.0+cpu
+torchvision==0.29.0+cpu
+uvicorn==0.52.4
