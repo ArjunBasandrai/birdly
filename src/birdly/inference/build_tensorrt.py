@@ -122,8 +122,13 @@ def build_tensorrt_engine(
     optimum_shape = (optimum_batch_size, 3, image_size, image_size)
     maximum_shape = (maximum_batch_size, 3, image_size, image_size)
     profile = builder.create_optimization_profile()
-    if not profile.set_shape(
+    profile.set_shape(
         INPUT_NAME,
+        minimum_shape,
+        optimum_shape,
+        maximum_shape,
+    )
+    if tuple(profile.get_shape(INPUT_NAME)) != (
         minimum_shape,
         optimum_shape,
         maximum_shape,
