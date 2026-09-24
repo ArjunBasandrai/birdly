@@ -84,6 +84,8 @@ def load_onnx_runtime_model(
         if "CUDAExecutionProvider" not in ort.get_available_providers():
             raise RuntimeError("ONNX Runtime CUDAExecutionProvider is unavailable")
         device_index = selected_device.index or 0
+        if device_index != 0:
+            raise ValueError("Birdly ONNX Runtime supports CUDA device 0 only")
         selected_device = torch.device("cuda", device_index)
         with torch.cuda.device(selected_device):
             stream = torch.cuda.current_stream(selected_device)
@@ -91,7 +93,6 @@ def load_onnx_runtime_model(
             (
                 "CUDAExecutionProvider",
                 {
-                    "device_id": device_index,
                     "user_compute_stream": str(stream.cuda_stream),
                     "do_copy_in_default_stream": "1",
                     "use_tf32": "0",
