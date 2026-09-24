@@ -10,3 +10,4 @@ cpu_threads: 2
 allowed_cors_origins:
   - http://localhost:3000
   - http://localhost:5173
+  - https://birdlyus.com
