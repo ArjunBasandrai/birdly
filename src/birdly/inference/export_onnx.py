@@ -156,9 +156,18 @@ def verify_onnx_parity(
     image_batch = torch.stack(
         [preprocess_image(pytorch_predictor, path) for path in image_paths]
     ).to(pytorch_predictor.device)
-    with torch.inference_mode():
-        pytorch_logits = pytorch_predictor.model(image_batch)
-        onnx_logits = onnx_predictor.model(image_batch)
+    cudnn_tf32 = torch.backends.cudnn.allow_tf32
+    matmul_tf32 = torch.backends.cuda.matmul.allow_tf32
+    try:
+        if device == "cuda":
+            torch.backends.cudnn.allow_tf32 = False
+            torch.backends.cuda.matmul.allow_tf32 = False
+        with torch.inference_mode():
+            pytorch_logits = pytorch_predictor.model(image_batch)
+            onnx_logits = onnx_predictor.model(image_batch)
+    finally:
+        torch.backends.cudnn.allow_tf32 = cudnn_tf32
+        torch.backends.cuda.matmul.allow_tf32 = matmul_tf32
 
     if pytorch_logits.shape != onnx_logits.shape:
         raise ValueError("ONNX output shape does not match PyTorch")

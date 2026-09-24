@@ -94,6 +94,7 @@ def load_onnx_runtime_model(
                     "device_id": device_index,
                     "user_compute_stream": str(stream.cuda_stream),
                     "do_copy_in_default_stream": "1",
+                    "use_tf32": "0",
                 },
             ),
             "CPUExecutionProvider",
