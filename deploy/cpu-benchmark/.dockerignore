@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!requirements.txt
+!build-manifest.json
+!src/
+!src/**
+!model/
+!model/**
+!input/
+!input/representative-image
