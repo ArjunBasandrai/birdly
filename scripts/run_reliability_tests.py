@@ -339,7 +339,15 @@ def _test_valid_prediction(api_url: str, image: bytes) -> TestResult:
     if response.status == 200:
         try:
             payload = json.loads(response.body)
-            valid_body = isinstance(payload, list) and len(payload) == 5
+            valid_body = (
+                isinstance(payload, list)
+                and len(payload) <= 5
+                and all(
+                    isinstance(prediction, dict)
+                    and set(prediction) == {"species_name", "taxon_id", "score"}
+                    for prediction in payload
+                )
+            )
         except (json.JSONDecodeError, UnicodeDecodeError):
             pass
     return _status_result(
@@ -347,7 +355,9 @@ def _test_valid_prediction(api_url: str, image: bytes) -> TestResult:
         200,
         response,
         extra_pass=valid_body,
-        detail="five predictions" if valid_body else _body_detail(response.body),
+        detail="zero to five predictions"
+        if valid_body
+        else _body_detail(response.body),
     )
 
 

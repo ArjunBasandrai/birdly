@@ -38,14 +38,22 @@ export default function () {
   if (response.status === 200) {
     try {
       const predictions = response.json();
-      validPrediction = Array.isArray(predictions) && predictions.length === 5;
+      validPrediction =
+        Array.isArray(predictions) &&
+        predictions.length <= 5 &&
+        predictions.every(
+          (prediction) =>
+            typeof prediction.species_name === "string" &&
+            Number.isInteger(prediction.taxon_id) &&
+            typeof prediction.score === "number",
+        );
     } catch (_) {
       validPrediction = false;
     }
   }
   const successful = check(response, {
     "status is 200": (result) => result.status === 200,
-    "returns five predictions": () => validPrediction,
+    "returns zero to five predictions": () => validPrediction,
   });
   successfulRequests.add(successful ? 1 : 0);
   errorRequests.add(successful ? 0 : 1);

@@ -227,8 +227,11 @@ def verify_tensorrt_parity(
     predictions = predict_batch(tensorrt_predictor, image_paths[:1])
     prediction_format_valid = (
         len(predictions) == 1
-        and len(predictions[0]) == 5
-        and set(predictions[0][0]) == {"species_name", "taxon_id", "score"}
+        and len(predictions[0]) <= 5
+        and all(
+            set(prediction) == {"species_name", "taxon_id", "score"}
+            for prediction in predictions[0]
+        )
     )
     report = {
         "candidate_backend": tensorrt_predictor.backend,

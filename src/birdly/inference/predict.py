@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 from collections.abc import Callable, Sequence
 from contextlib import nullcontext
@@ -38,6 +39,9 @@ DEFAULT_ONNX_INT8_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata-int8.json"
 DEFAULT_TENSORRT_ENGINE_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-fp16.engine"
 DEFAULT_TENSORRT_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata-tensorrt-fp16.json"
 DEFAULT_COMPILE_MODE = "default"
+MINIMUM_TOP_CONFIDENCE = 0.50
+CUMULATIVE_CONFIDENCE_TARGET = 0.90
+MAXIMUM_RETURNED_PREDICTIONS = 5
 InferenceBackendName = Literal[
     "pytorch",
     "pytorch-fp16",
@@ -369,6 +373,27 @@ def predict_logits(
     return np.asarray(predictor.model(image_batch), dtype=np.float32)
 
 
+def filter_predictions_by_confidence(
+    predictions: Sequence[Prediction],
+) -> list[Prediction]:
+    if not predictions or predictions[0]["score"] <= MINIMUM_TOP_CONFIDENCE:
+        return []
+
+    selected: list[Prediction] = []
+    cumulative_confidence = 0.0
+    for prediction in predictions[:MAXIMUM_RETURNED_PREDICTIONS]:
+        selected.append(prediction)
+        cumulative_confidence += prediction["score"]
+        if cumulative_confidence >= CUMULATIVE_CONFIDENCE_TARGET or math.isclose(
+            cumulative_confidence,
+            CUMULATIVE_CONFIDENCE_TARGET,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ):
+            break
+    return selected
+
+
 def predict_batch(
     predictor: Predictor,
     image_paths: Sequence[str | Path | Image.Image],
@@ -410,7 +435,7 @@ def predict_batch(
                     "score": float(score),
                 }
             )
-        batch_predictions.append(predictions)
+        batch_predictions.append(filter_predictions_by_confidence(predictions))
     return batch_predictions
 
 

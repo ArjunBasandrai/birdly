@@ -353,8 +353,11 @@ def verify_int8_inference(
     formatted_predictions = predict_batch(int8_predictor, image_paths[:1])
     prediction_format_valid = (
         len(formatted_predictions) == 1
-        and len(formatted_predictions[0]) == 5
-        and set(formatted_predictions[0][0]) == {"species_name", "taxon_id", "score"}
+        and len(formatted_predictions[0]) <= 5
+        and all(
+            set(prediction) == {"species_name", "taxon_id", "score"}
+            for prediction in formatted_predictions[0]
+        )
     )
     report = {
         "candidate_backend": int8_predictor.backend,
