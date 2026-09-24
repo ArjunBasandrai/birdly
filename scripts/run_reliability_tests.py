@@ -28,6 +28,7 @@ DEFAULT_BURST_REQUESTS = 8
 DEFAULT_MAXIMUM_UPLOAD_BYTES = 10 * 1024 * 1024
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 35.0
 DEFAULT_STARTUP_TIMEOUT_SECONDS = 60.0
+MAX_REMOTE_RATE_LIMIT_REQUESTS = 100
 RELEVANT_METRIC_PREFIX = "birdly_"
 VALID_GIF_1X1 = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
 
@@ -479,6 +480,78 @@ def _test_rate_limit(
         _remove_container(temporary_name)
 
 
+def _test_remote_rate_limit(
+    *,
+    api_url: str,
+    image: bytes,
+    rate_limit_per_minute: int,
+) -> list[TestResult]:
+    maximum_requests = rate_limit_per_minute + 1
+    if maximum_requests > MAX_REMOTE_RATE_LIMIT_REQUESTS:
+        raise RuntimeError(
+            "The reported rate limit is too high for the bounded remote test: "
+            f"{rate_limit_per_minute}"
+        )
+
+    responses: list[HttpResult] = []
+    for _ in range(maximum_requests):
+        response = _post_image(api_url, image)
+        responses.append(response)
+        if response.status == 429:
+            break
+
+    statuses = [response.status for response in responses]
+    rejected_response = next(
+        (response for response in responses if response.status == 429),
+        None,
+    )
+    rejected_index = statuses.index(429) if rejected_response is not None else None
+    preceding_statuses = statuses[:rejected_index] if rejected_index is not None else []
+    overflow_passed = rejected_response is not None and all(
+        status == 200 for status in preceding_statuses
+    )
+    retry_after = (
+        rejected_response.headers.get("retry-after")
+        if rejected_response is not None
+        else None
+    )
+    health_response, _ = _health(api_url)
+    return [
+        TestResult(
+            name="rate_limit_overflow",
+            expected=f"429 within {maximum_requests} requests",
+            actual=str(statuses),
+            result="PASS" if overflow_passed else "FAIL",
+            http_status=(
+                rejected_response.status if rejected_response is not None else None
+            ),
+            latency_ms=(
+                rejected_response.latency_ms if rejected_response is not None else None
+            ),
+            detail=f"reported_limit={rate_limit_per_minute}",
+        ),
+        TestResult(
+            name="rate_limit_retry_after",
+            expected="Retry-After header",
+            actual=retry_after or "missing",
+            result="PASS" if retry_after is not None else "FAIL",
+            http_status=(
+                rejected_response.status if rejected_response is not None else None
+            ),
+            latency_ms=(
+                rejected_response.latency_ms if rejected_response is not None else None
+            ),
+            detail=f"reported_limit={rate_limit_per_minute}",
+        ),
+        _status_result(
+            "health_after_rate_limit",
+            200,
+            health_response,
+            detail="health after rate-limit verification",
+        ),
+    ]
+
+
 def _test_queue_timeout(
     *,
     image: bytes,
@@ -674,12 +747,48 @@ def _run_rate_limit_tests(
         print(f"  {result.result}: {result.name} actual={result.actual}")
 
 
-def _skip(results: list[TestResult], name: str, reason: str) -> None:
+def _run_remote_rate_limit_tests(
+    results: list[TestResult],
+    test: Callable[[], list[TestResult]],
+) -> None:
+    print("Running remote rate-limit verification ...", flush=True)
+    try:
+        rate_results = test()
+    except Exception as error:  # noqa: BLE001
+        rate_results = [
+            TestResult(
+                name=name,
+                expected=expected,
+                actual=type(error).__name__,
+                result="FAIL",
+                http_status=None,
+                latency_ms=None,
+                detail=str(error),
+            )
+            for name, expected in (
+                ("rate_limit_overflow", "eventual 429"),
+                ("rate_limit_retry_after", "Retry-After header"),
+                ("health_after_rate_limit", "200"),
+            )
+        ]
+    results.extend(rate_results)
+    for result in rate_results:
+        print(f"  {result.result}: {result.name} actual={result.actual}")
+
+
+def _skip(
+    results: list[TestResult],
+    name: str,
+    reason: str,
+    *,
+    expected: str = "Docker condition enabled",
+    actual: str = "not enabled",
+) -> None:
     results.append(
         TestResult(
             name=name,
-            expected="Docker condition enabled",
-            actual="not enabled",
+            expected=expected,
+            actual=actual,
             result="SKIP",
             http_status=None,
             latency_ms=None,
@@ -725,6 +834,9 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--image", required=True, type=Path)
     parser.add_argument("--api-url", default=DEFAULT_API_URL)
     parser.add_argument("--container")
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument("--remote", action="store_true")
+    mode_group.add_argument("--remote-rate-limit-test", action="store_true")
     parser.add_argument("--output-root", type=Path)
     parser.add_argument(
         "--concurrent-requests",
@@ -750,11 +862,25 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--docker-restart-tests", action="store_true")
     parser.add_argument("--docker-missing-model-test", action="store_true")
     parser.add_argument("--smoke", action="store_true")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.remote_rate_limit_test and args.smoke:
+        parser.error("--smoke cannot be used with --remote-rate-limit-test")
+    if (args.remote or args.remote_rate_limit_test) and (
+        args.docker_restart_tests or args.docker_missing_model_test
+    ):
+        parser.error("Docker condition flags cannot be used in remote mode")
+    return args
 
 
 def main() -> int:
     args = _parse_arguments()
+    mode = (
+        "remote-rate-limit"
+        if args.remote_rate_limit_test
+        else "remote"
+        if args.remote
+        else "local"
+    )
     repository_root = Path(__file__).resolve().parents[1]
     image_path = args.image.expanduser().resolve()
     output_root = (
@@ -780,6 +906,7 @@ def main() -> int:
             "sha256": _file_sha256(image_path) if image_path.is_file() else None,
         },
         "maximum_upload_bytes": args.maximum_upload_bytes,
+        "mode": mode,
         "metrics_snapshots": {
             "after": "after request cases and before an optional target restart",
             "before": "before request cases",
@@ -799,13 +926,37 @@ def main() -> int:
             raise FileNotFoundError(f"Valid test image is missing: {image_path}")
         if args.concurrent_requests < 2 or args.burst_requests < 2:
             raise ValueError("Concurrency and burst counts must be at least 2")
-        if not args.smoke and not args.container:
+        if mode == "local" and not args.smoke and not args.container:
             raise ValueError("--container is required for the full reliability suite")
         valid_image = image_path.read_bytes()
         health_response, health_payload = _health(args.api_url)
         metadata["api_health"] = health_payload
         _write_json(results_directory / "configuration.json", metadata)
-        if (
+        if mode == "remote" and not args.smoke:
+            if health_response.status != 200 or not isinstance(health_payload, dict):
+                raise RuntimeError(
+                    "The remote suite requires a healthy API with configuration "
+                    "metadata"
+                )
+            if health_payload.get("rate_limit_per_minute") != 0:
+                raise RuntimeError(
+                    "The remote suite requires rate_limit_per_minute=0. Change "
+                    "the Cloud Run setting externally before this test."
+                )
+        elif mode == "remote-rate-limit":
+            if health_response.status != 200 or not isinstance(health_payload, dict):
+                raise RuntimeError(
+                    "The remote rate-limit test requires a healthy API with "
+                    "configuration metadata"
+                )
+            rate_limit_per_minute = health_payload.get("rate_limit_per_minute")
+            if not isinstance(rate_limit_per_minute, int) or rate_limit_per_minute < 1:
+                raise RuntimeError(
+                    "The remote rate-limit test requires "
+                    "rate_limit_per_minute>0. Restore the Cloud Run setting "
+                    "externally before this test."
+                )
+        elif (
             not args.smoke
             and health_response.status == 200
             and isinstance(health_payload, dict)
@@ -822,20 +973,39 @@ def main() -> int:
         )
         _write_json(results_directory / "api-metrics-before.json", before_metrics)
 
-        _run_named_test(
-            results,
-            "healthy_model_health",
-            lambda: _status_result(
-                "healthy_model_health", 200, health_response, detail="model loaded"
-            ),
-        )
-        _run_named_test(
-            results,
-            "valid_prediction",
-            lambda: _test_valid_prediction(args.api_url, valid_image),
-        )
+        if mode == "remote-rate-limit":
+            _run_remote_rate_limit_tests(
+                results,
+                lambda: _test_remote_rate_limit(
+                    api_url=args.api_url,
+                    image=valid_image,
+                    rate_limit_per_minute=rate_limit_per_minute,
+                ),
+            )
+            after_text, after_metrics = _fetch_metrics(args.api_url)
+            (results_directory / "api-metrics-after.prom").write_text(
+                after_text, encoding="utf-8"
+            )
+            _write_json(results_directory / "api-metrics-after.json", after_metrics)
+            _write_json(
+                results_directory / "api-metrics-delta.json",
+                _metric_delta(before_metrics, after_metrics),
+            )
+        else:
+            _run_named_test(
+                results,
+                "healthy_model_health",
+                lambda: _status_result(
+                    "healthy_model_health", 200, health_response, detail="model loaded"
+                ),
+            )
+            _run_named_test(
+                results,
+                "valid_prediction",
+                lambda: _test_valid_prediction(args.api_url, valid_image),
+            )
 
-        if not args.smoke:
+        if mode != "remote-rate-limit" and not args.smoke:
             _run_named_test(
                 results,
                 "corrupt_image",
@@ -935,45 +1105,66 @@ def main() -> int:
                 ),
             )
 
-            if shutil.which("docker") is None:
-                raise RuntimeError("Docker is required for container condition tests")
-            image_name, model_source = _inspect_container(args.container)
-            metadata["container_image"] = image_name
-            metadata["model_mount_source"] = model_source
-            _run_rate_limit_tests(
-                results,
-                lambda: _test_rate_limit(
-                    image=valid_image,
-                    image_name=image_name,
-                    model_source=model_source,
-                    startup_timeout_seconds=args.startup_timeout_seconds,
-                ),
-            )
-            _run_named_test(
-                results,
-                "inference_queue_timeout",
-                lambda: _test_queue_timeout(
-                    image=valid_image,
-                    image_name=image_name,
-                    model_source=model_source,
-                    startup_timeout_seconds=args.startup_timeout_seconds,
-                ),
-            )
-            if args.docker_missing_model_test:
-                _run_named_test(
-                    results,
+            if mode == "remote":
+                remote_skip_reason = (
+                    "requires control of the underlying container; skipped in "
+                    "remote mode"
+                )
+                for name in (
+                    "rate_limit_overflow",
+                    "rate_limit_retry_after",
+                    "inference_queue_timeout",
                     "missing_model_health",
-                    lambda: _test_missing_model(
+                ):
+                    _skip(
+                        results,
+                        name,
+                        remote_skip_reason,
+                        expected="local container control",
+                        actual="remote mode",
+                    )
+            else:
+                if shutil.which("docker") is None:
+                    raise RuntimeError(
+                        "Docker is required for container condition tests"
+                    )
+                image_name, model_source = _inspect_container(args.container)
+                metadata["container_image"] = image_name
+                metadata["model_mount_source"] = model_source
+                _run_rate_limit_tests(
+                    results,
+                    lambda: _test_rate_limit(
+                        image=valid_image,
                         image_name=image_name,
+                        model_source=model_source,
                         startup_timeout_seconds=args.startup_timeout_seconds,
                     ),
                 )
-            else:
-                _skip(
+                _run_named_test(
                     results,
-                    "missing_model_health",
-                    "use --docker-missing-model-test",
+                    "inference_queue_timeout",
+                    lambda: _test_queue_timeout(
+                        image=valid_image,
+                        image_name=image_name,
+                        model_source=model_source,
+                        startup_timeout_seconds=args.startup_timeout_seconds,
+                    ),
                 )
+                if args.docker_missing_model_test:
+                    _run_named_test(
+                        results,
+                        "missing_model_health",
+                        lambda: _test_missing_model(
+                            image_name=image_name,
+                            startup_timeout_seconds=args.startup_timeout_seconds,
+                        ),
+                    )
+                else:
+                    _skip(
+                        results,
+                        "missing_model_health",
+                        "use --docker-missing-model-test",
+                    )
             after_text, after_metrics = _fetch_metrics(args.api_url)
             (results_directory / "api-metrics-after.prom").write_text(
                 after_text, encoding="utf-8"
@@ -988,7 +1179,16 @@ def main() -> int:
                 "prometheus_failure_counters",
                 lambda: _test_metrics_increase(before_metrics, after_metrics),
             )
-            if args.docker_restart_tests:
+            if mode == "remote":
+                _skip(
+                    results,
+                    "container_restart_recovery",
+                    "requires control of the underlying container; skipped in "
+                    "remote mode",
+                    expected="local container control",
+                    actual="remote mode",
+                )
+            elif args.docker_restart_tests:
                 _run_named_test(
                     results,
                     "container_restart_recovery",
@@ -1010,7 +1210,7 @@ def main() -> int:
                 "active_inference_returns_to_zero",
                 lambda: _test_active_inference_zero(args.api_url),
             )
-        else:
+        elif mode != "remote-rate-limit":
             after_text, after_metrics = _fetch_metrics(args.api_url)
             (results_directory / "api-metrics-after.prom").write_text(
                 after_text, encoding="utf-8"
@@ -1035,12 +1235,15 @@ def main() -> int:
         passed = sum(result.result == "PASS" for result in results)
         failed = [result.name for result in results if result.result == "FAIL"]
         skipped = sum(result.result == "SKIP" for result in results)
+        skipped_tests = [result.name for result in results if result.result == "SKIP"]
         final_summary = {
             "artifact_directory": str(results_directory),
             "completed_at_utc": datetime.now(UTC).isoformat(),
             "failed_tests": failed,
+            "mode": mode,
             "passed": passed,
             "skipped": skipped,
+            "skipped_tests": skipped_tests,
             "status": "failed" if failed else "passed",
             "total": len(results),
         }
@@ -1061,6 +1264,7 @@ def main() -> int:
             {
                 "error": f"{type(error).__name__}: {error}",
                 "failed_at_utc": datetime.now(UTC).isoformat(),
+                "mode": mode,
                 "status": "failed",
             },
         )
