@@ -1,0 +1,13 @@
+*
+!Dockerfile
+!requirements.txt
+!api.yaml
+!build-manifest.json
+!src/
+!src/**
+!model/
+!model/class_mapping.json
+!model/preprocessing.json
+!model/onnx/
+!model/onnx/birdly-fp32.onnx
+!model/onnx/metadata.json

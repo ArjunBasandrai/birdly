@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import onnxruntime as ort
-import torch
+
+try:
+    import torch
+except ModuleNotFoundError:
+    torch = None
 
 
 @dataclass(frozen=True)
@@ -13,11 +18,23 @@ class OnnxRuntimeModel:
     session: ort.InferenceSession
     input_name: str
     output_name: str
-    device: torch.device
+    device: Any
     output_width: int
     execution_provider: str
 
-    def __call__(self, image_batch: torch.Tensor) -> torch.Tensor:
+    def __call__(self, image_batch: Any) -> Any:
+        if isinstance(image_batch, np.ndarray):
+            if str(self.device) != "cpu":
+                raise ValueError("NumPy input requires ONNX Runtime CPU inference")
+            if image_batch.dtype != np.float32:
+                raise ValueError("Birdly ONNX inference requires an FP32 array")
+            return self.session.run(
+                [self.output_name],
+                {self.input_name: np.ascontiguousarray(image_batch)},
+            )[0]
+
+        if torch is None:
+            raise TypeError("ONNX Runtime input must be a NumPy array")
         if image_batch.device != self.device:
             raise ValueError(
                 f"ONNX Runtime requires a tensor on {self.device}, "
@@ -64,21 +81,29 @@ def load_onnx_runtime_model(
     model_path: str | Path,
     *,
     cpu_threads: int,
-    device: str | torch.device = "cpu",
+    device: Any = "cpu",
 ) -> OnnxRuntimeModel:
     if cpu_threads < 1:
         raise ValueError("cpu_threads must be positive")
     model_path = Path(model_path)
     if not model_path.is_file():
         raise FileNotFoundError(f"ONNX model is missing: {model_path}")
-    selected_device = torch.device(device)
+    if torch is None:
+        if str(device) != "cpu":
+            raise RuntimeError("PyTorch is required for ONNX Runtime CUDA inference")
+        selected_device: Any = "cpu"
+    else:
+        selected_device = torch.device(device)
 
     session_options = ort.SessionOptions()
-    if selected_device.type == "cpu":
+    device_type = getattr(selected_device, "type", str(selected_device))
+    if device_type == "cpu":
         session_options.intra_op_num_threads = cpu_threads
         providers: list[str | tuple[str, dict[str, object]]] = ["CPUExecutionProvider"]
         execution_provider = "CPUExecutionProvider"
-    elif selected_device.type == "cuda":
+    elif device_type == "cuda":
+        if torch is None:
+            raise RuntimeError("PyTorch is required for ONNX Runtime CUDA inference")
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is unavailable")
         if "CUDAExecutionProvider" not in ort.get_available_providers():

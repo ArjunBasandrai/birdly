@@ -3,21 +3,29 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
-import torch
+import numpy as np
 from PIL import Image
-from torchvision import transforms
+
+try:
+    import torch
+except ModuleNotFoundError:
+    torch = None
+
+try:
+    from torchvision import transforms
+except ModuleNotFoundError:
+    transforms = None
 
 from birdly.inference.onnx_backend import load_onnx_runtime_model
 
-DEFAULT_MODEL_DIRECTORY = Path(
-    "B:/birdly-training/birdly-research-v3/runs/trial-01-lr-low-seed-2027"
-)
+DEFAULT_MODEL_DIRECTORY = Path(os.getenv("BIRDLY_MODEL_DIR", "artifacts/api-model"))
 DEFAULT_CHECKPOINT_PATH = DEFAULT_MODEL_DIRECTORY / "best.pt"
 DEFAULT_CLASS_MAPPING_PATH = DEFAULT_MODEL_DIRECTORY / "class_mapping.json"
 DEFAULT_SPECIES_NAMES_PATH = Path(__file__).with_name("species_names.json")
@@ -48,16 +56,16 @@ class Prediction(TypedDict):
 
 @dataclass(frozen=True)
 class Predictor:
-    model: Callable[[torch.Tensor], torch.Tensor]
-    transform: transforms.Compose
+    model: Callable[[Any], Any]
+    transform: Callable[[Image.Image], Any]
     class_to_taxon: dict[int, int]
     taxon_to_name: dict[int, str]
-    device: torch.device
+    device: Any
     model_name: str
     backend: str
     precision: str
     compile_mode: str | None
-    autocast_dtype: torch.dtype | None
+    autocast_dtype: Any | None
     image_size: int
     preprocessing: dict[str, Any]
 
@@ -70,11 +78,44 @@ def _file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _require_torch() -> Any:
+    if torch is None:
+        raise RuntimeError("This inference backend requires PyTorch")
+    return torch
+
+
+def _numpy_transform(preprocessing: dict[str, Any]) -> Callable[[Image.Image], Any]:
+    image_size = int(preprocessing["image_size"])
+    mean = np.asarray(preprocessing["mean"], dtype=np.float32)[:, None, None]
+    std = np.asarray(preprocessing["std"], dtype=np.float32)[:, None, None]
+
+    def transform(image: Image.Image) -> np.ndarray:
+        width, height = image.size
+        if width <= height:
+            resized_width = image_size
+            resized_height = int(image_size * height / width)
+        else:
+            resized_height = image_size
+            resized_width = int(image_size * width / height)
+        resized = image.resize(
+            (resized_width, resized_height),
+            resample=Image.Resampling.BILINEAR,
+        )
+        left = round((resized_width - image_size) / 2.0)
+        top = round((resized_height - image_size) / 2.0)
+        cropped = resized.crop((left, top, left + image_size, top + image_size))
+        image_array = np.asarray(cropped, dtype=np.float32).transpose(2, 0, 1)
+        image_array = image_array / np.float32(255.0)
+        return np.ascontiguousarray((image_array - mean) / std)
+
+    return transform
+
+
 def load_predictor(
     checkpoint_path: str | Path = DEFAULT_CHECKPOINT_PATH,
     class_mapping_path: str | Path = DEFAULT_CLASS_MAPPING_PATH,
     species_names_path: str | Path = DEFAULT_SPECIES_NAMES_PATH,
-    device: str | torch.device | None = None,
+    device: Any = None,
     compile_model: bool = False,
     backend: InferenceBackendName = "pytorch",
     onnx_model_path: str | Path = DEFAULT_ONNX_MODEL_PATH,
@@ -99,34 +140,42 @@ def load_predictor(
     ):
         raise ValueError(f"Unknown inference backend: {backend}")
     if backend in ("pytorch-fp16", "tensorrt"):
+        torch_module = _require_torch()
         if compile_model:
             raise ValueError("torch.compile cannot be combined with this backend")
-        selected_device = torch.device(device or "cuda")
+        selected_device = torch_module.device(device or "cuda")
         if selected_device.type != "cuda":
             raise ValueError(f"{backend} inference requires CUDA")
-        if not torch.cuda.is_available():
+        if not torch_module.cuda.is_available():
             raise RuntimeError("CUDA is unavailable")
     elif backend in ("onnxruntime", "onnxruntime-int8"):
         if compile_model:
             raise ValueError("torch.compile is not available for ONNX Runtime")
-        if device is not None and torch.device(device).type != "cpu":
-            raise ValueError("ONNX Runtime supports CPU inference only")
-        selected_device = torch.device("cpu")
+        if torch is None:
+            if device is not None and str(device) != "cpu":
+                raise ValueError("ONNX Runtime supports CPU inference only")
+            selected_device = "cpu"
+        else:
+            if device is not None and torch.device(device).type != "cpu":
+                raise ValueError("ONNX Runtime supports CPU inference only")
+            selected_device = torch.device("cpu")
     elif backend == "onnxruntime-cuda":
+        torch_module = _require_torch()
         if compile_model:
             raise ValueError("torch.compile is not available for ONNX Runtime")
-        selected_device = torch.device(device or "cuda")
+        selected_device = torch_module.device(device or "cuda")
         if selected_device.type != "cuda":
             raise ValueError("ONNX Runtime CUDA requires a CUDA device")
-        if not torch.cuda.is_available():
+        if not torch_module.cuda.is_available():
             raise RuntimeError("CUDA is unavailable")
         device_index = selected_device.index
         if device_index is None:
-            device_index = torch.cuda.current_device()
-        selected_device = torch.device("cuda", device_index)
+            device_index = torch_module.cuda.current_device()
+        selected_device = torch_module.device("cuda", device_index)
     else:
-        selected_device = torch.device(
-            device or ("cuda" if torch.cuda.is_available() else "cpu")
+        torch_module = _require_torch()
+        selected_device = torch_module.device(
+            device or ("cuda" if torch_module.cuda.is_available() else "cpu")
         )
 
     mapping_data = json.loads(class_mapping_path.read_text(encoding="utf-8"))
@@ -211,9 +260,10 @@ def load_predictor(
         compile_mode = None
         autocast_dtype = None
     else:
+        torch_module = _require_torch()
         from birdly.training.model import build_model
 
-        checkpoint = torch.load(
+        checkpoint = torch_module.load(
             checkpoint_path,
             map_location="cpu",
             weights_only=False,
@@ -236,13 +286,13 @@ def load_predictor(
         model_name = type(model).__name__
         if backend == "pytorch-fp16":
             compile_mode = None
-            autocast_dtype = torch.float16
+            autocast_dtype = torch_module.float16
             backend_label = "pytorch-fp16"
             precision = "float16"
         else:
             compile_mode = DEFAULT_COMPILE_MODE if compile_model else None
             if compile_mode is not None:
-                model = torch.compile(model, mode=compile_mode)
+                model = torch_module.compile(model, mode=compile_mode)
             backend_label = (
                 "pytorch-compile-inductor" if compile_model else "pytorch-eager"
             )
@@ -251,17 +301,22 @@ def load_predictor(
         preprocessing = checkpoint["preprocessing"]
 
     image_size = int(preprocessing["image_size"])
-    transform = transforms.Compose(
-        [
-            transforms.Resize(image_size),
-            transforms.CenterCrop(image_size),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=preprocessing["mean"],
-                std=preprocessing["std"],
-            ),
-        ]
-    )
+    if transforms is None:
+        if backend not in ("onnxruntime", "onnxruntime-int8"):
+            raise RuntimeError("This inference backend requires TorchVision")
+        transform = _numpy_transform(preprocessing)
+    else:
+        transform = transforms.Compose(
+            [
+                transforms.Resize(image_size),
+                transforms.CenterCrop(image_size),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=preprocessing["mean"],
+                    std=preprocessing["std"],
+                ),
+            ]
+        )
     return Predictor(
         model=model,
         transform=transform,
@@ -281,7 +336,7 @@ def load_predictor(
 def preprocess_image(
     predictor: Predictor,
     image_path: str | Path | Image.Image,
-) -> torch.Tensor:
+) -> Any:
     if isinstance(image_path, Image.Image):
         return predictor.transform(image_path.convert("RGB"))
     with Image.open(image_path) as image:
@@ -289,7 +344,7 @@ def preprocess_image(
 
 
 def inference_context(predictor: Predictor):
-    if predictor.autocast_dtype is None:
+    if torch is None or predictor.autocast_dtype is None:
         return nullcontext()
     return torch.autocast(
         device_type=predictor.device.type,
@@ -300,14 +355,18 @@ def inference_context(predictor: Predictor):
 def predict_logits(
     predictor: Predictor,
     image_paths: Sequence[str | Path | Image.Image],
-) -> torch.Tensor:
+) -> Any:
     if not image_paths:
         raise ValueError("image_paths must not be empty")
-    image_batch = torch.stack(
-        [preprocess_image(predictor, image_path) for image_path in image_paths]
-    ).to(predictor.device)
-    with torch.inference_mode(), inference_context(predictor):
-        return predictor.model(image_batch).float()
+    transformed_images = [
+        preprocess_image(predictor, image_path) for image_path in image_paths
+    ]
+    if torch is not None and isinstance(transformed_images[0], torch.Tensor):
+        image_batch = torch.stack(transformed_images).to(predictor.device)
+        with torch.inference_mode(), inference_context(predictor):
+            return predictor.model(image_batch).float()
+    image_batch = np.stack(transformed_images).astype(np.float32, copy=False)
+    return np.asarray(predictor.model(image_batch), dtype=np.float32)
 
 
 def predict_batch(
@@ -318,15 +377,29 @@ def predict_batch(
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
 
-    with torch.inference_mode():
+    inference_mode = torch.inference_mode() if torch is not None else nullcontext()
+    with inference_mode:
         logits = predict_logits(predictor, image_paths)
-        probabilities = torch.softmax(logits, dim=1)
-        scores, indices = probabilities.topk(
-            min(top_k, len(predictor.class_to_taxon)), dim=1
-        )
+        if torch is not None and isinstance(logits, torch.Tensor):
+            probabilities = torch.softmax(logits, dim=1)
+            scores, indices = probabilities.topk(
+                min(top_k, len(predictor.class_to_taxon)), dim=1
+            )
+            score_rows = scores.tolist()
+            index_rows = indices.tolist()
+        else:
+            logits = np.asarray(logits, dtype=np.float32)
+            shifted_logits = logits - logits.max(axis=1, keepdims=True)
+            exponentials = np.exp(shifted_logits)
+            probabilities = exponentials / exponentials.sum(axis=1, keepdims=True)
+            selected_count = min(top_k, len(predictor.class_to_taxon))
+            indices = np.argsort(probabilities, axis=1)[:, ::-1][:, :selected_count]
+            scores = np.take_along_axis(probabilities, indices, axis=1)
+            score_rows = scores.tolist()
+            index_rows = indices.tolist()
 
     batch_predictions: list[list[Prediction]] = []
-    for row_indices, row_scores in zip(indices.tolist(), scores.tolist()):
+    for row_indices, row_scores in zip(index_rows, score_rows):
         predictions: list[Prediction] = []
         for index, score in zip(row_indices, row_scores):
             taxon_id = predictor.class_to_taxon[int(index)]
