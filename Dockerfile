@@ -22,7 +22,7 @@ COPY --chown=birdly:birdly src/birdly/api ./src/birdly/api
 COPY --chown=birdly:birdly src/birdly/inference/__init__.py ./src/birdly/inference/__init__.py
 COPY --chown=birdly:birdly src/birdly/inference/onnx_backend.py ./src/birdly/inference/onnx_backend.py
 COPY --chown=birdly:birdly src/birdly/inference/predict.py ./src/birdly/inference/predict.py
-COPY --chown=birdly:birdly src/birdly/inference/species_names.json ./src/birdly/inference/species_names.json
+COPY --chown=birdly:birdly src/birdly/inference/taxon_names.json ./src/birdly/inference/taxon_names.json
 
 USER birdly
 

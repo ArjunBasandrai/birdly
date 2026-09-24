@@ -8,8 +8,9 @@ from birdly.inference.predict import Prediction, filter_predictions_by_confidenc
 def _predictions(*scores: float) -> list[Prediction]:
     return [
         {
-            "species_name": f"Species {index}",
             "taxon_id": index,
+            "common_name": f"Common {index}",
+            "scientific_name": f"Scientific {index}",
             "score": score,
         }
         for index, score in enumerate(scores)

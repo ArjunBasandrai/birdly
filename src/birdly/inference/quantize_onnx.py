@@ -355,7 +355,7 @@ def verify_int8_inference(
         len(formatted_predictions) == 1
         and len(formatted_predictions[0]) <= 5
         and all(
-            set(prediction) == {"species_name", "taxon_id", "score"}
+            set(prediction) == {"taxon_id", "common_name", "scientific_name", "score"}
             for prediction in formatted_predictions[0]
         )
     )

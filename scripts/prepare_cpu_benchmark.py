@@ -21,7 +21,7 @@ SOURCE_FILES = (
     "src/birdly/inference/cpu_benchmark.py",
     "src/birdly/inference/onnx_backend.py",
     "src/birdly/inference/predict.py",
-    "src/birdly/inference/species_names.json",
+    "src/birdly/inference/taxon_names.json",
     "src/birdly/training/__init__.py",
     "src/birdly/training/model.py",
 )

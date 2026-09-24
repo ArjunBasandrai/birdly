@@ -143,7 +143,8 @@ def _write_per_class_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     fieldnames = [
         "class_index",
         "taxon_id",
-        "species_name",
+        "common_name",
+        "scientific_name",
         "support",
         "precision",
         "recall",
@@ -292,7 +293,9 @@ def evaluate(
     loss = float(computed.pop("loss"))
     per_class = computed.pop("per_class")
     for row in per_class:
-        row["species_name"] = predictor.taxon_to_name[int(row["taxon_id"])]
+        names = predictor.taxon_to_names[int(row["taxon_id"])]
+        row["common_name"] = names["common_name"]
+        row["scientific_name"] = names["scientific_name"]
     metrics = {
         **computed,
         "cross_entropy": loss,

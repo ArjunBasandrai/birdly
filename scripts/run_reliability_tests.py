@@ -344,7 +344,8 @@ def _test_valid_prediction(api_url: str, image: bytes) -> TestResult:
                 and len(payload) <= 5
                 and all(
                     isinstance(prediction, dict)
-                    and set(prediction) == {"species_name", "taxon_id", "score"}
+                    and set(prediction)
+                    == {"taxon_id", "common_name", "scientific_name", "score"}
                     for prediction in payload
                 )
             )

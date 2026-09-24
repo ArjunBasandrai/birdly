@@ -28,7 +28,7 @@ SOURCE_FILES = (
     "src/birdly/inference/__init__.py",
     "src/birdly/inference/onnx_backend.py",
     "src/birdly/inference/predict.py",
-    "src/birdly/inference/species_names.json",
+    "src/birdly/inference/taxon_names.json",
 )
 MODEL_FILES = (
     "class_mapping.json",
@@ -99,6 +99,27 @@ def _validate_model_bundle(model_source: Path) -> dict[str, Any]:
     return metadata
 
 
+def _validate_taxon_names(
+    class_mapping: dict[str, Any],
+    taxon_names_path: Path,
+) -> int:
+    taxon_names = _read_json(taxon_names_path)
+    class_to_taxon = class_mapping.get("class_to_taxon")
+    if not isinstance(class_to_taxon, dict):
+        raise TypeError("Class mapping does not contain class_to_taxon")
+    expected_ids = {str(int(taxon_id)) for taxon_id in class_to_taxon.values()}
+    if set(taxon_names) != expected_ids:
+        raise ValueError("Taxon-name metadata does not match the class mapping")
+    for taxon_id, names in taxon_names.items():
+        if not isinstance(names, dict):
+            raise TypeError(f"Taxon {taxon_id} has invalid name metadata")
+        for field in ("common_name", "scientific_name"):
+            value = names.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Taxon {taxon_id} has no {field}")
+    return len(taxon_names)
+
+
 def _portable_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     result = dict(metadata)
     result["class_mapping_path"] = "class_mapping.json"
@@ -112,6 +133,13 @@ def _portable_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
 def _prepare_build(model_source: Path) -> Path:
     model_source = model_source.expanduser().resolve()
     metadata = _validate_model_bundle(model_source)
+    taxon_names_path = (
+        REPOSITORY_ROOT / "src" / "birdly" / "inference" / "taxon_names.json"
+    )
+    taxon_name_count = _validate_taxon_names(
+        _read_json(model_source / "class_mapping.json"),
+        taxon_names_path,
+    )
     prepared_at = datetime.now(UTC).isoformat()
     commit = _git_commit()
     DEPLOYMENT_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -149,6 +177,12 @@ def _prepare_build(model_source: Path) -> Path:
             "model_files": packaged_files,
             "prepared_at_utc": prepared_at,
             "python_base_image": "python:3.12-slim",
+            "taxon_names": {
+                "bytes": taxon_names_path.stat().st_size,
+                "path": "src/birdly/inference/taxon_names.json",
+                "sha256": _sha256(taxon_names_path),
+                "taxon_count": taxon_name_count,
+            },
         }
         (staging_directory / "build-manifest.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n",

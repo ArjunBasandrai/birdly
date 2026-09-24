@@ -43,7 +43,8 @@ export default function () {
         predictions.length <= 5 &&
         predictions.every(
           (prediction) =>
-            typeof prediction.species_name === "string" &&
+            typeof prediction.common_name === "string" &&
+            typeof prediction.scientific_name === "string" &&
             Number.isInteger(prediction.taxon_id) &&
             typeof prediction.score === "number",
         );

@@ -29,7 +29,7 @@ from birdly.inference.onnx_backend import load_onnx_runtime_model
 DEFAULT_MODEL_DIRECTORY = Path(os.getenv("BIRDLY_MODEL_DIR", "artifacts/api-model"))
 DEFAULT_CHECKPOINT_PATH = DEFAULT_MODEL_DIRECTORY / "best.pt"
 DEFAULT_CLASS_MAPPING_PATH = DEFAULT_MODEL_DIRECTORY / "class_mapping.json"
-DEFAULT_SPECIES_NAMES_PATH = Path(__file__).with_name("species_names.json")
+DEFAULT_TAXON_NAMES_PATH = Path(__file__).with_name("taxon_names.json")
 DEFAULT_PREPROCESSING_PATH = DEFAULT_MODEL_DIRECTORY / "preprocessing.json"
 DEFAULT_ONNX_DIRECTORY = DEFAULT_MODEL_DIRECTORY / "onnx"
 DEFAULT_ONNX_MODEL_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-fp32.onnx"
@@ -53,9 +53,15 @@ InferenceBackendName = Literal[
 
 
 class Prediction(TypedDict):
-    species_name: str
     taxon_id: int
+    common_name: str
+    scientific_name: str
     score: float
+
+
+class TaxonName(TypedDict):
+    common_name: str
+    scientific_name: str
 
 
 @dataclass(frozen=True)
@@ -63,7 +69,7 @@ class Predictor:
     model: Callable[[Any], Any]
     transform: Callable[[Image.Image], Any]
     class_to_taxon: dict[int, int]
-    taxon_to_name: dict[int, str]
+    taxon_to_names: dict[int, TaxonName]
     device: Any
     model_name: str
     backend: str
@@ -118,7 +124,7 @@ def _numpy_transform(preprocessing: dict[str, Any]) -> Callable[[Image.Image], A
 def load_predictor(
     checkpoint_path: str | Path = DEFAULT_CHECKPOINT_PATH,
     class_mapping_path: str | Path = DEFAULT_CLASS_MAPPING_PATH,
-    species_names_path: str | Path = DEFAULT_SPECIES_NAMES_PATH,
+    taxon_names_path: str | Path = DEFAULT_TAXON_NAMES_PATH,
     device: Any = None,
     compile_model: bool = False,
     backend: InferenceBackendName = "pytorch",
@@ -133,7 +139,7 @@ def load_predictor(
 ) -> Predictor:
     checkpoint_path = Path(checkpoint_path)
     class_mapping_path = Path(class_mapping_path)
-    species_names_path = Path(species_names_path)
+    taxon_names_path = Path(taxon_names_path)
     if backend not in (
         "pytorch",
         "pytorch-fp16",
@@ -192,14 +198,25 @@ def load_predictor(
     if set(class_to_taxon) != set(range(len(class_to_taxon))):
         raise ValueError("Class mapping indices are not contiguous")
 
-    taxon_to_name = {
-        int(taxon_id): str(name)
-        for taxon_id, name in json.loads(
-            species_names_path.read_text(encoding="utf-8")
-        ).items()
-    }
-    if set(taxon_to_name) != set(class_to_taxon.values()):
-        raise ValueError("Species names do not match the class mapping")
+    raw_taxon_names = json.loads(taxon_names_path.read_text(encoding="utf-8"))
+    if not isinstance(raw_taxon_names, dict):
+        raise TypeError("Taxon names must be a JSON object")
+    taxon_to_names: dict[int, TaxonName] = {}
+    for taxon_id, names in raw_taxon_names.items():
+        if not isinstance(names, dict):
+            raise TypeError(f"Taxon {taxon_id} has invalid name metadata")
+        common_name = names.get("common_name")
+        scientific_name = names.get("scientific_name")
+        if not isinstance(common_name, str) or not common_name.strip():
+            raise ValueError(f"Taxon {taxon_id} has no common name")
+        if not isinstance(scientific_name, str) or not scientific_name.strip():
+            raise ValueError(f"Taxon {taxon_id} has no scientific name")
+        taxon_to_names[int(taxon_id)] = {
+            "common_name": common_name.strip(),
+            "scientific_name": scientific_name.strip(),
+        }
+    if set(taxon_to_names) != set(class_to_taxon.values()):
+        raise ValueError("Taxon names do not match the class mapping")
 
     if backend == "tensorrt":
         from birdly.inference.tensorrt_backend import load_tensorrt_model
@@ -325,7 +342,7 @@ def load_predictor(
         model=model,
         transform=transform,
         class_to_taxon=class_to_taxon,
-        taxon_to_name=taxon_to_name,
+        taxon_to_names=taxon_to_names,
         device=selected_device,
         model_name=model_name,
         backend=backend_label,
@@ -394,6 +411,26 @@ def filter_predictions_by_confidence(
     return selected
 
 
+def _format_predictions(
+    predictor: Predictor,
+    class_indices: Sequence[int],
+    scores: Sequence[float],
+) -> list[Prediction]:
+    predictions: list[Prediction] = []
+    for index, score in zip(class_indices, scores):
+        taxon_id = predictor.class_to_taxon[int(index)]
+        names = predictor.taxon_to_names[taxon_id]
+        predictions.append(
+            {
+                "taxon_id": taxon_id,
+                "common_name": names["common_name"],
+                "scientific_name": names["scientific_name"],
+                "score": float(score),
+            }
+        )
+    return filter_predictions_by_confidence(predictions)
+
+
 def predict_batch(
     predictor: Predictor,
     image_paths: Sequence[str | Path | Image.Image],
@@ -425,17 +462,9 @@ def predict_batch(
 
     batch_predictions: list[list[Prediction]] = []
     for row_indices, row_scores in zip(index_rows, score_rows):
-        predictions: list[Prediction] = []
-        for index, score in zip(row_indices, row_scores):
-            taxon_id = predictor.class_to_taxon[int(index)]
-            predictions.append(
-                {
-                    "species_name": predictor.taxon_to_name[taxon_id],
-                    "taxon_id": taxon_id,
-                    "score": float(score),
-                }
-            )
-        batch_predictions.append(filter_predictions_by_confidence(predictions))
+        batch_predictions.append(
+            _format_predictions(predictor, row_indices, row_scores)
+        )
     return batch_predictions
 
 
@@ -474,8 +503,9 @@ def main() -> None:
     for rank, prediction in enumerate(predict_image(predictor, args.image), start=1):
         print(
             f"{rank}. "
-            f"species_name={prediction['species_name']} "
             f"taxon_id={prediction['taxon_id']} "
+            f"common_name={prediction['common_name']} "
+            f"scientific_name={prediction['scientific_name']} "
             f"score={prediction['score']:.6f}"
         )
 

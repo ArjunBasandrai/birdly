@@ -229,7 +229,8 @@ def verify_tensorrt_parity(
         len(predictions) == 1
         and len(predictions[0]) <= 5
         and all(
-            set(prediction) == {"species_name", "taxon_id", "score"}
+            set(prediction)
+            == {"taxon_id", "common_name", "scientific_name", "score"}
             for prediction in predictions[0]
         )
     )

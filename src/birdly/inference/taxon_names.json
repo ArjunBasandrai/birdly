@@ -1,0 +1,946 @@
+{
+  "473": {
+    "common_name": "American Coot",
+    "scientific_name": "Fulica americana"
+  },
+  "890": {
+    "common_name": "Ruffed Grouse",
+    "scientific_name": "Bonasa umbellus"
+  },
+  "906": {
+    "common_name": "Wild Turkey",
+    "scientific_name": "Meleagris gallopavo"
+  },
+  "981": {
+    "common_name": "Ring-necked Pheasant",
+    "scientific_name": "Phasianus colchicus"
+  },
+  "1960": {
+    "common_name": "Black-billed Cuckoo",
+    "scientific_name": "Coccyzus erythropthalmus"
+  },
+  "1965": {
+    "common_name": "Yellow-billed Cuckoo",
+    "scientific_name": "Coccyzus americanus"
+  },
+  "2548": {
+    "common_name": "Belted Kingfisher",
+    "scientific_name": "Megaceryle alcyon"
+  },
+  "3454": {
+    "common_name": "Mourning Dove",
+    "scientific_name": "Zenaida macroura"
+  },
+  "3756": {
+    "common_name": "Glossy Ibis",
+    "scientific_name": "Plegadis falcinellus"
+  },
+  "3849": {
+    "common_name": "Sanderling",
+    "scientific_name": "Calidris alba"
+  },
+  "3856": {
+    "common_name": "Purple Sandpiper",
+    "scientific_name": "Calidris maritima"
+  },
+  "3857": {
+    "common_name": "Dunlin",
+    "scientific_name": "Calidris alpina"
+  },
+  "3862": {
+    "common_name": "Semipalmated Sandpiper",
+    "scientific_name": "Calidris pusilla"
+  },
+  "3864": {
+    "common_name": "Least Sandpiper",
+    "scientific_name": "Calidris minutilla"
+  },
+  "3865": {
+    "common_name": "Pectoral Sandpiper",
+    "scientific_name": "Calidris melanotos"
+  },
+  "3866": {
+    "common_name": "White-rumped Sandpiper",
+    "scientific_name": "Calidris fuscicollis"
+  },
+  "3875": {
+    "common_name": "Solitary Sandpiper",
+    "scientific_name": "Tringa solitaria"
+  },
+  "3892": {
+    "common_name": "Greater Yellowlegs",
+    "scientific_name": "Tringa melanoleuca"
+  },
+  "3893": {
+    "common_name": "Lesser Yellowlegs",
+    "scientific_name": "Tringa flavipes"
+  },
+  "3936": {
+    "common_name": "American Woodcock",
+    "scientific_name": "Scolopax minor"
+  },
+  "3938": {
+    "common_name": "Ruddy Turnstone",
+    "scientific_name": "Arenaria interpres"
+  },
+  "4209": {
+    "common_name": "Horned Grebe",
+    "scientific_name": "Podiceps auritus"
+  },
+  "4224": {
+    "common_name": "Red-necked Grebe",
+    "scientific_name": "Podiceps grisegena"
+  },
+  "4246": {
+    "common_name": "Pied-billed Grebe",
+    "scientific_name": "Podilymbus podiceps"
+  },
+  "4361": {
+    "common_name": "Iceland Gull",
+    "scientific_name": "Larus glaucoides"
+  },
+  "4364": {
+    "common_name": "Ring-billed Gull",
+    "scientific_name": "Larus delawarensis"
+  },
+  "4368": {
+    "common_name": "Great Black-backed Gull",
+    "scientific_name": "Larus marinus"
+  },
+  "4381": {
+    "common_name": "Lesser Black-backed Gull",
+    "scientific_name": "Larus fuscus"
+  },
+  "4450": {
+    "common_name": "Common Tern",
+    "scientific_name": "Sterna hirundo"
+  },
+  "4457": {
+    "common_name": "Forster's Tern",
+    "scientific_name": "Sterna forsteri"
+  },
+  "4496": {
+    "common_name": "Black Skimmer",
+    "scientific_name": "Rynchops niger"
+  },
+  "4512": {
+    "common_name": "Black Tern",
+    "scientific_name": "Chlidonias niger"
+  },
+  "4626": {
+    "common_name": "Common Loon",
+    "scientific_name": "Gavia immer"
+  },
+  "4627": {
+    "common_name": "Red-throated Loon",
+    "scientific_name": "Gavia stellata"
+  },
+  "4647": {
+    "common_name": "Peregrine Falcon",
+    "scientific_name": "Falco peregrinus"
+  },
+  "4665": {
+    "common_name": "American Kestrel",
+    "scientific_name": "Falco sparverius"
+  },
+  "4672": {
+    "common_name": "Merlin",
+    "scientific_name": "Falco columbarius"
+  },
+  "4756": {
+    "common_name": "Turkey Vulture",
+    "scientific_name": "Cathartes aura"
+  },
+  "4765": {
+    "common_name": "Black Vulture",
+    "scientific_name": "Coragyps atratus"
+  },
+  "4793": {
+    "common_name": "Killdeer",
+    "scientific_name": "Charadrius vociferus"
+  },
+  "4798": {
+    "common_name": "Piping Plover",
+    "scientific_name": "Charadrius melodus"
+  },
+  "4817": {
+    "common_name": "Semipalmated Plover",
+    "scientific_name": "Charadrius semipalmatus"
+  },
+  "4840": {
+    "common_name": "American Oystercatcher",
+    "scientific_name": "Haematopus palliatus"
+  },
+  "4892": {
+    "common_name": "Black-bellied Plover",
+    "scientific_name": "Pluvialis squatarola"
+  },
+  "4940": {
+    "common_name": "Snowy Egret",
+    "scientific_name": "Egretta thula"
+  },
+  "4956": {
+    "common_name": "Great Blue Heron",
+    "scientific_name": "Ardea herodias"
+  },
+  "4981": {
+    "common_name": "Black-crowned Night Heron",
+    "scientific_name": "Nycticorax nycticorax"
+  },
+  "4999": {
+    "common_name": "Yellow-crowned Night Heron",
+    "scientific_name": "Nyctanassa violacea"
+  },
+  "5020": {
+    "common_name": "Green Heron",
+    "scientific_name": "Butorides virescens"
+  },
+  "5034": {
+    "common_name": "American Bittern",
+    "scientific_name": "Botaurus lentiginosus"
+  },
+  "5097": {
+    "common_name": "Sharp-shinned Hawk",
+    "scientific_name": "Accipiter striatus"
+  },
+  "5200": {
+    "common_name": "Rough-legged Hawk",
+    "scientific_name": "Buteo lagopus"
+  },
+  "5206": {
+    "common_name": "Red-shouldered Hawk",
+    "scientific_name": "Buteo lineatus"
+  },
+  "5212": {
+    "common_name": "Red-tailed Hawk",
+    "scientific_name": "Buteo jamaicensis"
+  },
+  "5227": {
+    "common_name": "Broad-winged Hawk",
+    "scientific_name": "Buteo platypterus"
+  },
+  "5305": {
+    "common_name": "Bald Eagle",
+    "scientific_name": "Haliaeetus leucocephalus"
+  },
+  "6432": {
+    "common_name": "Ruby-throated Hummingbird",
+    "scientific_name": "Archilochus colubris"
+  },
+  "6571": {
+    "common_name": "Chimney Swift",
+    "scientific_name": "Chaetura pelagica"
+  },
+  "6915": {
+    "common_name": "Trumpeter Swan",
+    "scientific_name": "Cygnus buccinator"
+  },
+  "6917": {
+    "common_name": "Tundra Swan",
+    "scientific_name": "Cygnus columbianus"
+  },
+  "6921": {
+    "common_name": "Mute Swan",
+    "scientific_name": "Cygnus olor"
+  },
+  "6924": {
+    "common_name": "American Black Duck",
+    "scientific_name": "Anas rubripes"
+  },
+  "6930": {
+    "common_name": "Mallard",
+    "scientific_name": "Anas platyrhynchos"
+  },
+  "6933": {
+    "common_name": "Northern Pintail",
+    "scientific_name": "Anas acuta"
+  },
+  "6937": {
+    "common_name": "Green-winged Teal",
+    "scientific_name": "Anas crecca"
+  },
+  "6990": {
+    "common_name": "Common Goldeneye",
+    "scientific_name": "Bucephala clangula"
+  },
+  "6993": {
+    "common_name": "Bufflehead",
+    "scientific_name": "Bucephala albeola"
+  },
+  "6996": {
+    "common_name": "Red-breasted Merganser",
+    "scientific_name": "Mergus serrator"
+  },
+  "7004": {
+    "common_name": "Common Merganser",
+    "scientific_name": "Mergus merganser"
+  },
+  "7019": {
+    "common_name": "Greater White-fronted Goose",
+    "scientific_name": "Anser albifrons"
+  },
+  "7024": {
+    "common_name": "Common Eider",
+    "scientific_name": "Somateria mollissima"
+  },
+  "7036": {
+    "common_name": "Surf Scoter",
+    "scientific_name": "Melanitta perspicillata"
+  },
+  "7044": {
+    "common_name": "Ring-necked Duck",
+    "scientific_name": "Aythya collaris"
+  },
+  "7047": {
+    "common_name": "Greater Scaup",
+    "scientific_name": "Aythya marila"
+  },
+  "7054": {
+    "common_name": "Lesser Scaup",
+    "scientific_name": "Aythya affinis"
+  },
+  "7056": {
+    "common_name": "Redhead",
+    "scientific_name": "Aythya americana"
+  },
+  "7057": {
+    "common_name": "Canvasback",
+    "scientific_name": "Aythya valisineria"
+  },
+  "7087": {
+    "common_name": "Brant",
+    "scientific_name": "Branta bernicla"
+  },
+  "7089": {
+    "common_name": "Canada Goose",
+    "scientific_name": "Branta canadensis"
+  },
+  "7107": {
+    "common_name": "Wood Duck",
+    "scientific_name": "Aix sponsa"
+  },
+  "7109": {
+    "common_name": "Hooded Merganser",
+    "scientific_name": "Lophodytes cucullatus"
+  },
+  "7111": {
+    "common_name": "Harlequin Duck",
+    "scientific_name": "Histrionicus histrionicus"
+  },
+  "7170": {
+    "common_name": "Long-tailed Duck",
+    "scientific_name": "Clangula hyemalis"
+  },
+  "7294": {
+    "common_name": "Horned Lark",
+    "scientific_name": "Eremophila alpestris"
+  },
+  "7428": {
+    "common_name": "Cedar Waxwing",
+    "scientific_name": "Bombycilla cedrorum"
+  },
+  "7429": {
+    "common_name": "Bohemian Waxwing",
+    "scientific_name": "Bombycilla garrulus"
+  },
+  "7458": {
+    "common_name": "Brown Creeper",
+    "scientific_name": "Certhia americana"
+  },
+  "7493": {
+    "common_name": "Blue-gray Gnatcatcher",
+    "scientific_name": "Polioptila caerulea"
+  },
+  "7513": {
+    "common_name": "Carolina Wren",
+    "scientific_name": "Thryothorus ludovicianus"
+  },
+  "7562": {
+    "common_name": "Northern House Wren",
+    "scientific_name": "Troglodytes aedon"
+  },
+  "7601": {
+    "common_name": "Marsh Wren",
+    "scientific_name": "Cistothorus palustris"
+  },
+  "8001": {
+    "common_name": "Fish Crow",
+    "scientific_name": "Corvus ossifragus"
+  },
+  "8010": {
+    "common_name": "Common Raven",
+    "scientific_name": "Corvus corax"
+  },
+  "8021": {
+    "common_name": "American Crow",
+    "scientific_name": "Corvus brachyrhynchos"
+  },
+  "8229": {
+    "common_name": "Blue Jay",
+    "scientific_name": "Cyanocitta cristata"
+  },
+  "9083": {
+    "common_name": "Northern Cardinal",
+    "scientific_name": "Cardinalis cardinalis"
+  },
+  "9092": {
+    "common_name": "Lincoln's Sparrow",
+    "scientific_name": "Melospiza lincolnii"
+  },
+  "9096": {
+    "common_name": "Swamp Sparrow",
+    "scientific_name": "Melospiza georgiana"
+  },
+  "9100": {
+    "common_name": "Song Sparrow",
+    "scientific_name": "Melospiza melodia"
+  },
+  "9135": {
+    "common_name": "Chipping Sparrow",
+    "scientific_name": "Spizella passerina"
+  },
+  "9152": {
+    "common_name": "Field Sparrow",
+    "scientific_name": "Spizella pusilla"
+  },
+  "9156": {
+    "common_name": "Fox Sparrow",
+    "scientific_name": "Passerella iliaca"
+  },
+  "9176": {
+    "common_name": "White-crowned Sparrow",
+    "scientific_name": "Zonotrichia leucophrys"
+  },
+  "9184": {
+    "common_name": "White-throated Sparrow",
+    "scientific_name": "Zonotrichia albicollis"
+  },
+  "9325": {
+    "common_name": "Orchard Oriole",
+    "scientific_name": "Icterus spurius"
+  },
+  "9346": {
+    "common_name": "Baltimore Oriole",
+    "scientific_name": "Icterus galbula"
+  },
+  "9424": {
+    "common_name": "Eastern Towhee",
+    "scientific_name": "Pipilo erythrophthalmus"
+  },
+  "9528": {
+    "common_name": "Eastern Meadowlark",
+    "scientific_name": "Sturnella magna"
+  },
+  "9602": {
+    "common_name": "Common Grackle",
+    "scientific_name": "Quiscalus quiscula"
+  },
+  "9721": {
+    "common_name": "Common Yellowthroat",
+    "scientific_name": "Geothlypis trichas"
+  },
+  "9744": {
+    "common_name": "Red-winged Blackbird",
+    "scientific_name": "Agelaius phoeniceus"
+  },
+  "9771": {
+    "common_name": "Pine Grosbeak",
+    "scientific_name": "Pinicola enucleator"
+  },
+  "9807": {
+    "common_name": "Golden-winged Warbler",
+    "scientific_name": "Vermivora chrysoptera"
+  },
+  "9921": {
+    "common_name": "Scarlet Tanager",
+    "scientific_name": "Piranga olivacea"
+  },
+  "9981": {
+    "common_name": "Savannah Sparrow",
+    "scientific_name": "Passerculus sandwichensis"
+  },
+  "10094": {
+    "common_name": "Dark-eyed Junco",
+    "scientific_name": "Junco hyemalis"
+  },
+  "10139": {
+    "common_name": "Grasshopper Sparrow",
+    "scientific_name": "Ammodramus savannarum"
+  },
+  "10168": {
+    "common_name": "Vesper Sparrow",
+    "scientific_name": "Pooecetes gramineus"
+  },
+  "10227": {
+    "common_name": "Indigo Bunting",
+    "scientific_name": "Passerina cyanea"
+  },
+  "10247": {
+    "common_name": "American Redstart",
+    "scientific_name": "Setophaga ruticilla"
+  },
+  "10271": {
+    "common_name": "Rose-breasted Grosbeak",
+    "scientific_name": "Pheucticus ludovicianus"
+  },
+  "10286": {
+    "common_name": "Black-and-white Warbler",
+    "scientific_name": "Mniotilta varia"
+  },
+  "10322": {
+    "common_name": "Rusty Blackbird",
+    "scientific_name": "Euphagus carolinus"
+  },
+  "10373": {
+    "common_name": "Brown-headed Cowbird",
+    "scientific_name": "Molothrus ater"
+  },
+  "10411": {
+    "common_name": "Red Crossbill",
+    "scientific_name": "Loxia curvirostra"
+  },
+  "10487": {
+    "common_name": "Bobolink",
+    "scientific_name": "Dolichonyx oryzivorus"
+  },
+  "11858": {
+    "common_name": "Cliff Swallow",
+    "scientific_name": "Petrochelidon pyrrhonota"
+  },
+  "11867": {
+    "common_name": "Purple Martin",
+    "scientific_name": "Progne subis"
+  },
+  "11901": {
+    "common_name": "Barn Swallow",
+    "scientific_name": "Hirundo rustica"
+  },
+  "11935": {
+    "common_name": "Tree Swallow",
+    "scientific_name": "Tachycineta bicolor"
+  },
+  "11941": {
+    "common_name": "Bank Swallow",
+    "scientific_name": "Riparia riparia"
+  },
+  "11970": {
+    "common_name": "Northern Rough-winged Swallow",
+    "scientific_name": "Stelgidopteryx serripennis"
+  },
+  "12727": {
+    "common_name": "American Robin",
+    "scientific_name": "Turdus migratorius"
+  },
+  "12878": {
+    "common_name": "Swainson's Thrush",
+    "scientific_name": "Catharus ustulatus"
+  },
+  "12890": {
+    "common_name": "Hermit Thrush",
+    "scientific_name": "Catharus guttatus"
+  },
+  "12901": {
+    "common_name": "Veery",
+    "scientific_name": "Catharus fuscescens"
+  },
+  "12942": {
+    "common_name": "Eastern Bluebird",
+    "scientific_name": "Sialia sialis"
+  },
+  "13270": {
+    "common_name": "Wood Thrush",
+    "scientific_name": "Hylocichla mustelina"
+  },
+  "13632": {
+    "common_name": "Tufted Titmouse",
+    "scientific_name": "Baeolophus bicolor"
+  },
+  "13732": {
+    "common_name": "American Pipit",
+    "scientific_name": "Anthus rubescens"
+  },
+  "13858": {
+    "common_name": "House Sparrow",
+    "scientific_name": "Passer domesticus"
+  },
+  "14801": {
+    "common_name": "White-breasted Nuthatch",
+    "scientific_name": "Sitta carolinensis"
+  },
+  "14823": {
+    "common_name": "Red-breasted Nuthatch",
+    "scientific_name": "Sitta canadensis"
+  },
+  "14850": {
+    "common_name": "European Starling",
+    "scientific_name": "Sturnus vulgaris"
+  },
+  "14886": {
+    "common_name": "Northern Mockingbird",
+    "scientific_name": "Mimus polyglottos"
+  },
+  "14898": {
+    "common_name": "Brown Thrasher",
+    "scientific_name": "Toxostoma rufum"
+  },
+  "14995": {
+    "common_name": "Gray Catbird",
+    "scientific_name": "Dumetella carolinensis"
+  },
+  "16028": {
+    "common_name": "Great Crested Flycatcher",
+    "scientific_name": "Myiarchus crinitus"
+  },
+  "16100": {
+    "common_name": "Eastern Wood-Pewee",
+    "scientific_name": "Contopus virens"
+  },
+  "16110": {
+    "common_name": "Olive-sided Flycatcher",
+    "scientific_name": "Contopus cooperi"
+  },
+  "16602": {
+    "common_name": "Least Flycatcher",
+    "scientific_name": "Empidonax minimus"
+  },
+  "16782": {
+    "common_name": "Eastern Kingbird",
+    "scientific_name": "Tyrannus tyrannus"
+  },
+  "17008": {
+    "common_name": "Eastern Phoebe",
+    "scientific_name": "Sayornis phoebe"
+  },
+  "17364": {
+    "common_name": "Philadelphia Vireo",
+    "scientific_name": "Vireo philadelphicus"
+  },
+  "17365": {
+    "common_name": "Yellow-throated Vireo",
+    "scientific_name": "Vireo flavifrons"
+  },
+  "17394": {
+    "common_name": "Eastern Warbling Vireo",
+    "scientific_name": "Vireo gilvus"
+  },
+  "17402": {
+    "common_name": "Blue-headed Vireo",
+    "scientific_name": "Vireo solitarius"
+  },
+  "17855": {
+    "common_name": "Pileated Woodpecker",
+    "scientific_name": "Dryocopus pileatus"
+  },
+  "18204": {
+    "common_name": "Red-headed Woodpecker",
+    "scientific_name": "Melanerpes erythrocephalus"
+  },
+  "18205": {
+    "common_name": "Red-bellied Woodpecker",
+    "scientific_name": "Melanerpes carolinus"
+  },
+  "18236": {
+    "common_name": "Northern Flicker",
+    "scientific_name": "Colaptes auratus"
+  },
+  "18463": {
+    "common_name": "Yellow-bellied Sapsucker",
+    "scientific_name": "Sphyrapicus varius"
+  },
+  "19349": {
+    "common_name": "Monk Parakeet",
+    "scientific_name": "Myiopsitta monachus"
+  },
+  "19577": {
+    "common_name": "Common Nighthawk",
+    "scientific_name": "Chordeiles minor"
+  },
+  "19765": {
+    "common_name": "Eastern Screech-Owl",
+    "scientific_name": "Megascops asio"
+  },
+  "19893": {
+    "common_name": "Barred Owl",
+    "scientific_name": "Strix varia"
+  },
+  "20044": {
+    "common_name": "Great Horned Owl",
+    "scientific_name": "Bubo virginianus"
+  },
+  "20315": {
+    "common_name": "Short-eared Owl",
+    "scientific_name": "Asio flammeus"
+  },
+  "20356": {
+    "common_name": "Northern Saw-whet Owl",
+    "scientific_name": "Aegolius acadicus"
+  },
+  "59220": {
+    "common_name": "Cackling Goose",
+    "scientific_name": "Branta hutchinsii"
+  },
+  "62550": {
+    "common_name": "Ovenbird",
+    "scientific_name": "Seiurus aurocapilla"
+  },
+  "72458": {
+    "common_name": "Spotted Sandpiper",
+    "scientific_name": "Actitis macularius"
+  },
+  "72912": {
+    "common_name": "Worm-eating Warbler",
+    "scientific_name": "Helmitheros vermivorum"
+  },
+  "73148": {
+    "common_name": "Louisiana Waterthrush",
+    "scientific_name": "Parkesia motacilla"
+  },
+  "73149": {
+    "common_name": "Northern Waterthrush",
+    "scientific_name": "Parkesia noveboracensis"
+  },
+  "73553": {
+    "common_name": "Blue-winged Warbler",
+    "scientific_name": "Vermivora cyanoptera"
+  },
+  "116999": {
+    "common_name": "Osprey",
+    "scientific_name": "Pandion haliaetus"
+  },
+  "117059": {
+    "common_name": "Snow Bunting",
+    "scientific_name": "Plectrophenax nivalis"
+  },
+  "117100": {
+    "common_name": "Golden-crowned Kinglet",
+    "scientific_name": "Regulus satrapa"
+  },
+  "144220": {
+    "common_name": "Black Scoter",
+    "scientific_name": "Melanitta americana"
+  },
+  "144222": {
+    "common_name": "White-winged Scoter",
+    "scientific_name": "Melanitta deglandi"
+  },
+  "144455": {
+    "common_name": "Great Egret",
+    "scientific_name": "Ardea alba"
+  },
+  "144479": {
+    "common_name": "Common Gallinule",
+    "scientific_name": "Gallinula galeata"
+  },
+  "144491": {
+    "common_name": "Willet",
+    "scientific_name": "Tringa semipalmata"
+  },
+  "144496": {
+    "common_name": "Wilson's Snipe",
+    "scientific_name": "Gallinago delicata"
+  },
+  "144502": {
+    "common_name": "Bonaparte's Gull",
+    "scientific_name": "Chroicocephalus philadelphia"
+  },
+  "144514": {
+    "common_name": "Laughing Gull",
+    "scientific_name": "Leucophaeus atricilla"
+  },
+  "144530": {
+    "common_name": "Least Tern",
+    "scientific_name": "Sternula antillarum"
+  },
+  "144537": {
+    "common_name": "Caspian Tern",
+    "scientific_name": "Hydroprogne caspia"
+  },
+  "144594": {
+    "common_name": "Snowy Owl",
+    "scientific_name": "Bubo scandiacus"
+  },
+  "144815": {
+    "common_name": "Black-capped Chickadee",
+    "scientific_name": "Poecile atricapillus"
+  },
+  "144883": {
+    "common_name": "Winter Wren",
+    "scientific_name": "Troglodytes hiemalis"
+  },
+  "145224": {
+    "common_name": "Mourning Warbler",
+    "scientific_name": "Geothlypis philadelphia"
+  },
+  "145229": {
+    "common_name": "Hooded Warbler",
+    "scientific_name": "Setophaga citrina"
+  },
+  "145231": {
+    "common_name": "Cape May Warbler",
+    "scientific_name": "Setophaga tigrina"
+  },
+  "145232": {
+    "common_name": "Cerulean Warbler",
+    "scientific_name": "Setophaga cerulea"
+  },
+  "145233": {
+    "common_name": "Northern Parula",
+    "scientific_name": "Setophaga americana"
+  },
+  "145235": {
+    "common_name": "Magnolia Warbler",
+    "scientific_name": "Setophaga magnolia"
+  },
+  "145236": {
+    "common_name": "Bay-breasted Warbler",
+    "scientific_name": "Setophaga castanea"
+  },
+  "145237": {
+    "common_name": "Blackburnian Warbler",
+    "scientific_name": "Setophaga fusca"
+  },
+  "145239": {
+    "common_name": "Chestnut-sided Warbler",
+    "scientific_name": "Setophaga pensylvanica"
+  },
+  "145240": {
+    "common_name": "Blackpoll Warbler",
+    "scientific_name": "Setophaga striata"
+  },
+  "145242": {
+    "common_name": "Palm Warbler",
+    "scientific_name": "Setophaga palmarum"
+  },
+  "145244": {
+    "common_name": "Pine Warbler",
+    "scientific_name": "Setophaga pinus"
+  },
+  "145245": {
+    "common_name": "Yellow-rumped Warbler",
+    "scientific_name": "Setophaga coronata"
+  },
+  "145249": {
+    "common_name": "Prairie Warbler",
+    "scientific_name": "Setophaga discolor"
+  },
+  "145258": {
+    "common_name": "Black-throated Green Warbler",
+    "scientific_name": "Setophaga virens"
+  },
+  "145275": {
+    "common_name": "Canada Warbler",
+    "scientific_name": "Cardellina canadensis"
+  },
+  "145276": {
+    "common_name": "Wilson's Warbler",
+    "scientific_name": "Cardellina pusilla"
+  },
+  "145300": {
+    "common_name": "Redpoll",
+    "scientific_name": "Acanthis flammea"
+  },
+  "145304": {
+    "common_name": "Pine Siskin",
+    "scientific_name": "Spinus pinus"
+  },
+  "145310": {
+    "common_name": "American Goldfinch",
+    "scientific_name": "Spinus tristis"
+  },
+  "199840": {
+    "common_name": "House Finch",
+    "scientific_name": "Haemorhous mexicanus"
+  },
+  "199841": {
+    "common_name": "Purple Finch",
+    "scientific_name": "Haemorhous purpureus"
+  },
+  "199916": {
+    "common_name": "Black-throated Blue Warbler",
+    "scientific_name": "Setophaga caerulescens"
+  },
+  "474210": {
+    "common_name": "American Tree Sparrow",
+    "scientific_name": "Spizelloides arborea"
+  },
+  "485176": {
+    "common_name": "American Wigeon",
+    "scientific_name": "Mareca americana"
+  },
+  "508048": {
+    "common_name": "Sandhill Crane",
+    "scientific_name": "Antigone canadensis"
+  },
+  "558426": {
+    "common_name": "Snow Goose",
+    "scientific_name": "Anser caerulescens"
+  },
+  "558433": {
+    "common_name": "Blue-winged Teal",
+    "scientific_name": "Spatula discors"
+  },
+  "558438": {
+    "common_name": "Northern Shoveler",
+    "scientific_name": "Spatula clypeata"
+  },
+  "558439": {
+    "common_name": "Gadwall",
+    "scientific_name": "Mareca strepera"
+  },
+  "558446": {
+    "common_name": "Northern Harrier",
+    "scientific_name": "Circus hudsonius"
+  },
+  "558512": {
+    "common_name": "Northern Shrike",
+    "scientific_name": "Lanius borealis"
+  },
+  "792988": {
+    "common_name": "Downy Woodpecker",
+    "scientific_name": "Dryobates pubescens"
+  },
+  "850859": {
+    "common_name": "Ruddy Duck",
+    "scientific_name": "Oxyura jamaicensis"
+  },
+  "891704": {
+    "common_name": "Red-eyed Vireo",
+    "scientific_name": "Vireo olivaceus"
+  },
+  "979753": {
+    "common_name": "Nashville Warbler",
+    "scientific_name": "Leiothlypis ruficapilla"
+  },
+  "979756": {
+    "common_name": "Tennessee Warbler",
+    "scientific_name": "Leiothlypis peregrina"
+  },
+  "1188207": {
+    "common_name": "Northern Yellow Warbler",
+    "scientific_name": "Setophaga aestiva"
+  },
+  "1289388": {
+    "common_name": "Ruby-crowned Kinglet",
+    "scientific_name": "Corthylio calendula"
+  },
+  "1454382": {
+    "common_name": "Double-crested Cormorant",
+    "scientific_name": "Nannopterum auritum"
+  },
+  "1578489": {
+    "common_name": "American Herring Gull",
+    "scientific_name": "Larus smithsonianus"
+  },
+  "1579017": {
+    "common_name": "Cooper's Hawk",
+    "scientific_name": "Astur cooperii"
+  },
+  "1650411": {
+    "common_name": "Evening Grosbeak",
+    "scientific_name": "Hesperiphona vespertina"
+  },
+  "1651487": {
+    "common_name": "Hairy Woodpecker",
+    "scientific_name": "Leuconotopicus villosus"
+  }
+}
