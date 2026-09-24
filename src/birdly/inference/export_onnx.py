@@ -25,6 +25,7 @@ from birdly.inference.predict import (
     DEFAULT_ONNX_METADATA_PATH,
     DEFAULT_ONNX_MODEL_PATH,
     DEFAULT_PREPROCESSING_PATH,
+    InferenceBackendName,
     load_predictor,
     preprocess_image,
 )
@@ -139,18 +140,22 @@ def verify_onnx_parity(
     image_paths: Sequence[Path],
     *,
     report_path: Path = DEFAULT_PARITY_PATH,
+    backend: InferenceBackendName = "onnxruntime",
 ) -> dict[str, Any]:
     if not image_paths:
         raise ValueError("At least one parity image is required")
-    pytorch_predictor = load_predictor(device="cpu")
+    if backend not in ("onnxruntime", "onnxruntime-cuda"):
+        raise ValueError("Parity requires an ONNX Runtime backend")
+    device = "cuda" if backend == "onnxruntime-cuda" else "cpu"
+    pytorch_predictor = load_predictor(device=device)
     onnx_predictor = load_predictor(
-        backend="onnxruntime",
-        device="cpu",
+        backend=backend,
+        device=device,
         cpu_threads=1,
     )
     image_batch = torch.stack(
         [preprocess_image(pytorch_predictor, path) for path in image_paths]
-    )
+    ).to(pytorch_predictor.device)
     with torch.inference_mode():
         pytorch_logits = pytorch_predictor.model(image_batch)
         onnx_logits = onnx_predictor.model(image_batch)
@@ -171,12 +176,14 @@ def verify_onnx_parity(
         and top5_match
     )
     report = {
+        "candidate_backend": onnx_predictor.backend,
         "image_count": len(image_paths),
         "max_difference": max_difference,
         "max_difference_limit": MAX_DIFFERENCE_LIMIT,
         "mean_difference": mean_difference,
         "mean_difference_limit": MEAN_DIFFERENCE_LIMIT,
         "passed": passed,
+        "reference_backend": "pytorch-eager-fp32",
         "top1_match": top1_match,
         "top5_match": top5_match,
     }

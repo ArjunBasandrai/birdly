@@ -56,6 +56,7 @@ class BenchmarkResult:
 class InferenceBackend:
     predictor: Predictor
     cpu_threads: int | None = None
+    gpu_memory_baseline_mib: float | None = None
 
     @property
     def name(self) -> str:
@@ -183,9 +184,20 @@ def _percentile(values: Sequence[float], fraction: float) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
 
 
-def _peak_memory(device: torch.device) -> float | None:
+def _device_gpu_memory_used_mib(device: torch.device) -> float:
+    free_bytes, total_bytes = torch.cuda.mem_get_info(device)
+    return (total_bytes - free_bytes) / (1024**2)
+
+
+def _peak_memory(backend: InferenceBackend) -> float | None:
+    device = backend.predictor.device
     if device.type != "cuda":
         return None
+    if backend.gpu_memory_baseline_mib is not None:
+        return max(
+            0.0,
+            _device_gpu_memory_used_mib(device) - backend.gpu_memory_baseline_mib,
+        )
     return torch.cuda.max_memory_allocated(device) / (1024**2)
 
 
@@ -212,7 +224,7 @@ def _summarize(
         p99_latency_ms=_percentile(latencies, 0.99),
         throughput_images_per_second=batch_size * 1000.0 / mean,
         warmup_total_ms=warmup_total_ms,
-        peak_gpu_memory_mib=_peak_memory(backend.predictor.device),
+        peak_gpu_memory_mib=_peak_memory(backend),
         process_ram_mib=_process_ram(backend.predictor.device),
         precision=backend.precision,
         device=str(backend.predictor.device),
@@ -237,7 +249,7 @@ def _oom_result(
         p99_latency_ms=None,
         throughput_images_per_second=None,
         warmup_total_ms=None,
-        peak_gpu_memory_mib=_peak_memory(backend.predictor.device),
+        peak_gpu_memory_mib=_peak_memory(backend),
         process_ram_mib=_process_ram(backend.predictor.device),
         precision=backend.precision,
         device=str(backend.predictor.device),
@@ -373,6 +385,11 @@ def _run_device_benchmark(
     elif cpu_threads is not None:
         raise ValueError("CPU thread count must be null for a CUDA benchmark")
 
+    gpu_memory_baseline_mib = (
+        _device_gpu_memory_used_mib(torch.device(device))
+        if device == "cuda" and inference_backend == "onnxruntime-cuda"
+        else None
+    )
     load_start = time.perf_counter()
     predictor = load_predictor(
         device=device,
@@ -382,7 +399,11 @@ def _run_device_benchmark(
     )
     _sync(predictor.device)
     model_load_ms = (time.perf_counter() - load_start) * 1000.0
-    backend = InferenceBackend(predictor, cpu_threads=cpu_threads)
+    backend = InferenceBackend(
+        predictor,
+        cpu_threads=cpu_threads,
+        gpu_memory_baseline_mib=gpu_memory_baseline_mib,
+    )
     cpu_tensors = [preprocess_image(predictor, path) for path in image_paths]
 
     cold_batch = cpu_tensors[0].unsqueeze(0).to(predictor.device)
@@ -453,8 +474,10 @@ def run_benchmark(
     compile_model: bool = False,
     inference_backend: InferenceBackendName = "pytorch",
 ) -> dict[str, Any]:
-    if inference_backend == "onnxruntime" and compile_model:
+    if inference_backend != "pytorch" and compile_model:
         raise ValueError("torch.compile cannot be combined with ONNX Runtime")
+    if inference_backend == "onnxruntime-cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA is unavailable")
     if compile_model and warmup_iterations < 1:
         raise ValueError("Compiled benchmarks require at least one warmup iteration")
     environment = collect_environment()
@@ -463,13 +486,17 @@ def run_benchmark(
     print(json.dumps(environment, indent=2))
 
     device_configs: list[tuple[str, Sequence[int], int | None]] = []
-    if inference_backend == "pytorch" and torch.cuda.is_available():
+    if (
+        inference_backend in ("pytorch", "onnxruntime-cuda")
+        and torch.cuda.is_available()
+    ):
         device_configs.append(("cuda", cuda_batch_sizes, None))
     elif inference_backend == "pytorch":
         print("WARNING: CUDA is unavailable; the CUDA benchmark is skipped.")
-    device_configs.extend(
-        ("cpu", cpu_batch_sizes, cpu_threads) for cpu_threads in cpu_thread_counts
-    )
+    if inference_backend != "onnxruntime-cuda":
+        device_configs.extend(
+            ("cpu", cpu_batch_sizes, cpu_threads) for cpu_threads in cpu_thread_counts
+        )
 
     image_paths = load_benchmark_inputs(
         max(max(batch_sizes) for _, batch_sizes, _ in device_configs)
@@ -541,7 +568,9 @@ def _parse_args() -> dict[str, Any]:
     parser.add_argument("--iterations", type=int, default=50)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIRECTORY)
     parser.add_argument(
-        "--backend", choices=("pytorch", "onnxruntime"), default="pytorch"
+        "--backend",
+        choices=("pytorch", "onnxruntime", "onnxruntime-cuda"),
+        default="pytorch",
     )
     parser.add_argument(
         "--cpu-thread-counts",
@@ -567,7 +596,7 @@ def _parse_args() -> dict[str, Any]:
         parser.error("warmup must not be negative and iterations must be positive")
     if args.compile_model and args.warmup_iterations < 1:
         parser.error("compiled benchmarks require at least one warmup iteration")
-    if args.backend == "onnxruntime" and args.compile_model:
+    if args.backend != "pytorch" and args.compile_model:
         parser.error("--compile cannot be combined with --backend onnxruntime")
     return {
         "cuda_batch_sizes": cuda_batch_sizes,

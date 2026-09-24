@@ -26,7 +26,7 @@ DEFAULT_ONNX_DIRECTORY = DEFAULT_MODEL_DIRECTORY / "onnx"
 DEFAULT_ONNX_MODEL_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-fp32.onnx"
 DEFAULT_ONNX_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata.json"
 DEFAULT_COMPILE_MODE = "default"
-InferenceBackendName = Literal["pytorch", "onnxruntime"]
+InferenceBackendName = Literal["pytorch", "onnxruntime", "onnxruntime-cuda"]
 
 
 class Prediction(TypedDict):
@@ -73,7 +73,7 @@ def load_predictor(
     checkpoint_path = Path(checkpoint_path)
     class_mapping_path = Path(class_mapping_path)
     species_names_path = Path(species_names_path)
-    if backend not in ("pytorch", "onnxruntime"):
+    if backend not in ("pytorch", "onnxruntime", "onnxruntime-cuda"):
         raise ValueError(f"Unknown inference backend: {backend}")
     if backend == "onnxruntime":
         if compile_model:
@@ -81,6 +81,18 @@ def load_predictor(
         if device is not None and torch.device(device).type != "cpu":
             raise ValueError("ONNX Runtime supports CPU inference only")
         selected_device = torch.device("cpu")
+    elif backend == "onnxruntime-cuda":
+        if compile_model:
+            raise ValueError("torch.compile is not available for ONNX Runtime")
+        selected_device = torch.device(device or "cuda")
+        if selected_device.type != "cuda":
+            raise ValueError("ONNX Runtime CUDA requires a CUDA device")
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is unavailable")
+        device_index = selected_device.index
+        if device_index is None:
+            device_index = torch.cuda.current_device()
+        selected_device = torch.device("cuda", device_index)
     else:
         selected_device = torch.device(
             device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,7 +117,7 @@ def load_predictor(
     if set(taxon_to_name) != set(class_to_taxon.values()):
         raise ValueError("Species names do not match the class mapping")
 
-    if backend == "onnxruntime":
+    if backend in ("onnxruntime", "onnxruntime-cuda"):
         metadata = json.loads(Path(onnx_metadata_path).read_text(encoding="utf-8"))
         preprocessing = json.loads(Path(preprocessing_path).read_text(encoding="utf-8"))
         if (
@@ -122,9 +134,14 @@ def load_predictor(
         model = load_onnx_runtime_model(
             onnx_model_path,
             cpu_threads=cpu_threads,
+            device=selected_device,
         )
         model_name = str(metadata["model_name"])
-        backend_label = "onnxruntime-fp32"
+        backend_label = (
+            "onnxruntime-fp32-cuda"
+            if backend == "onnxruntime-cuda"
+            else "onnxruntime-fp32"
+        )
         precision = "float32"
         compile_mode = None
     else:
@@ -237,7 +254,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Predict one bird image.")
     parser.add_argument("image", type=Path)
     parser.add_argument(
-        "--backend", choices=("pytorch", "onnxruntime"), default="pytorch"
+        "--backend",
+        choices=("pytorch", "onnxruntime", "onnxruntime-cuda"),
+        default="pytorch",
     )
     parser.add_argument("--cpu-threads", type=int, default=1)
     parser.add_argument("--compile", action="store_true", dest="compile_model")
