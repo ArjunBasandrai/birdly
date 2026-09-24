@@ -95,6 +95,8 @@ class IpRateLimiter:
         self._checks = 0
 
     async def check(self, client_ip: str) -> None:
+        if self.limit == 0:
+            return
         now = time.monotonic()
         cutoff = now - self.window_seconds
         async with self._lock:
@@ -358,6 +360,9 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             "status": "ok",
             "model_loaded": True,
             "backend": service.backend,
+            "inference_concurrency": selected_settings.maximum_inference_concurrency,
+            "cpu_threads": selected_settings.cpu_threads,
+            "rate_limit_per_minute": selected_settings.rate_limit_per_minute,
         }
 
     @application.get("/metrics", include_in_schema=False)

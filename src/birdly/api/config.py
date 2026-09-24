@@ -25,6 +25,13 @@ def _positive_integer(value: Any, name: str) -> int:
     return result
 
 
+def _nonnegative_integer(value: Any, name: str) -> int:
+    result = int(value)
+    if result < 0:
+        raise ValueError(f"{name} must not be negative")
+    return result
+
+
 def _positive_float(value: Any, name: str) -> float:
     result = float(value)
     if result <= 0:
@@ -144,7 +151,7 @@ def load_api_settings(
     return ApiSettings(
         backend=backend,
         model_directory=Path(str(values["model_directory"])),
-        rate_limit_per_minute=_positive_integer(
+        rate_limit_per_minute=_nonnegative_integer(
             values["rate_limit_per_minute"], "rate_limit_per_minute"
         ),
         maximum_upload_bytes=_positive_integer(
