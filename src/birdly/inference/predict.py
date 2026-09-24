@@ -25,8 +25,15 @@ DEFAULT_PREPROCESSING_PATH = DEFAULT_MODEL_DIRECTORY / "preprocessing.json"
 DEFAULT_ONNX_DIRECTORY = DEFAULT_MODEL_DIRECTORY / "onnx"
 DEFAULT_ONNX_MODEL_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-fp32.onnx"
 DEFAULT_ONNX_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata.json"
+DEFAULT_ONNX_INT8_MODEL_PATH = DEFAULT_ONNX_DIRECTORY / "birdly-int8.onnx"
+DEFAULT_ONNX_INT8_METADATA_PATH = DEFAULT_ONNX_DIRECTORY / "metadata-int8.json"
 DEFAULT_COMPILE_MODE = "default"
-InferenceBackendName = Literal["pytorch", "onnxruntime", "onnxruntime-cuda"]
+InferenceBackendName = Literal[
+    "pytorch",
+    "onnxruntime",
+    "onnxruntime-cuda",
+    "onnxruntime-int8",
+]
 
 
 class Prediction(TypedDict):
@@ -67,15 +74,22 @@ def load_predictor(
     backend: InferenceBackendName = "pytorch",
     onnx_model_path: str | Path = DEFAULT_ONNX_MODEL_PATH,
     onnx_metadata_path: str | Path = DEFAULT_ONNX_METADATA_PATH,
+    onnx_int8_model_path: str | Path = DEFAULT_ONNX_INT8_MODEL_PATH,
+    onnx_int8_metadata_path: str | Path = DEFAULT_ONNX_INT8_METADATA_PATH,
     preprocessing_path: str | Path = DEFAULT_PREPROCESSING_PATH,
     cpu_threads: int = 1,
 ) -> Predictor:
     checkpoint_path = Path(checkpoint_path)
     class_mapping_path = Path(class_mapping_path)
     species_names_path = Path(species_names_path)
-    if backend not in ("pytorch", "onnxruntime", "onnxruntime-cuda"):
+    if backend not in (
+        "pytorch",
+        "onnxruntime",
+        "onnxruntime-cuda",
+        "onnxruntime-int8",
+    ):
         raise ValueError(f"Unknown inference backend: {backend}")
-    if backend == "onnxruntime":
+    if backend in ("onnxruntime", "onnxruntime-int8"):
         if compile_model:
             raise ValueError("torch.compile is not available for ONNX Runtime")
         if device is not None and torch.device(device).type != "cpu":
@@ -117,8 +131,16 @@ def load_predictor(
     if set(taxon_to_name) != set(class_to_taxon.values()):
         raise ValueError("Species names do not match the class mapping")
 
-    if backend in ("onnxruntime", "onnxruntime-cuda"):
-        metadata = json.loads(Path(onnx_metadata_path).read_text(encoding="utf-8"))
+    if backend in ("onnxruntime", "onnxruntime-cuda", "onnxruntime-int8"):
+        selected_model_path = Path(
+            onnx_int8_model_path if backend == "onnxruntime-int8" else onnx_model_path
+        )
+        selected_metadata_path = Path(
+            onnx_int8_metadata_path
+            if backend == "onnxruntime-int8"
+            else onnx_metadata_path
+        )
+        metadata = json.loads(selected_metadata_path.read_text(encoding="utf-8"))
         preprocessing = json.loads(Path(preprocessing_path).read_text(encoding="utf-8"))
         if (
             metadata["source_checkpoint_sha256"]
@@ -132,17 +154,18 @@ def load_predictor(
         if int(metadata["class_count"]) != len(class_to_taxon):
             raise ValueError("ONNX class count does not match the class mapping")
         model = load_onnx_runtime_model(
-            onnx_model_path,
+            selected_model_path,
             cpu_threads=cpu_threads,
             device=selected_device,
         )
         model_name = str(metadata["model_name"])
-        backend_label = (
-            "onnxruntime-fp32-cuda"
-            if backend == "onnxruntime-cuda"
-            else "onnxruntime-fp32"
-        )
-        precision = "float32"
+        if backend == "onnxruntime-cuda":
+            backend_label = "onnxruntime-fp32-cuda"
+        elif backend == "onnxruntime-int8":
+            backend_label = "onnxruntime-int8"
+        else:
+            backend_label = "onnxruntime-fp32"
+        precision = "int8" if backend == "onnxruntime-int8" else "float32"
         compile_mode = None
     else:
         checkpoint = torch.load(
@@ -262,7 +285,12 @@ def main() -> None:
     parser.add_argument("image", type=Path)
     parser.add_argument(
         "--backend",
-        choices=("pytorch", "onnxruntime", "onnxruntime-cuda"),
+        choices=(
+            "pytorch",
+            "onnxruntime",
+            "onnxruntime-cuda",
+            "onnxruntime-int8",
+        ),
         default="pytorch",
     )
     parser.add_argument("--cpu-threads", type=int, default=1)

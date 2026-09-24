@@ -19,6 +19,9 @@ from torch.nn import functional as F
 from birdly.inference.predict import (
     DEFAULT_CHECKPOINT_PATH,
     DEFAULT_CLASS_MAPPING_PATH,
+    DEFAULT_ONNX_INT8_MODEL_PATH,
+    DEFAULT_ONNX_MODEL_PATH,
+    InferenceBackendName,
     Predictor,
     load_predictor,
     predict_logits,
@@ -158,11 +161,10 @@ def _log_mlflow(
     mlflow.set_tracking_uri(DEFAULT_TRACKING_URI)
     mlflow.set_registry_uri(DEFAULT_TRACKING_URI)
     mlflow.set_experiment(DEFAULT_EXPERIMENT_NAME)
-    run_name = (
-        "fp32-test-evaluation-subset"
-        if summary["is_subset"]
-        else "fp32-test-evaluation"
-    )
+    run_prefix = "fp32" if summary["backend"] == "pytorch-eager" else summary["backend"]
+    run_name = f"{run_prefix}-test-evaluation"
+    if summary["is_subset"]:
+        run_name += "-subset"
     with mlflow.start_run(run_name=run_name) as run:
         run_id = run.info.run_id
         summary["mlflow_run_id"] = run_id
@@ -197,6 +199,9 @@ def _log_mlflow(
                 "checkpoint_path": summary["model_artifact_path"],
                 "checkpoint_sha256": summary["model_artifact_sha256"],
                 "class_count": summary["class_count"],
+                "cpu_threads": summary["cpu_threads"]
+                if summary["cpu_threads"] is not None
+                else "-",
                 "device": summary["device"],
                 "evaluated_row_count": summary["evaluated_row_count"],
                 "image_size": summary["image_size"],
@@ -227,6 +232,8 @@ def evaluate(
     image_root: Path = DEFAULT_IMAGE_ROOT,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
     max_images: int | None = None,
+    backend: InferenceBackendName = "pytorch",
+    cpu_threads: int = 1,
 ) -> dict[str, Any]:
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
@@ -234,10 +241,23 @@ def evaluate(
         raise ValueError("calibration_bins must be positive")
     if max_images is not None and max_images < 1:
         raise ValueError("max_images must be positive")
+    if cpu_threads < 1:
+        raise ValueError("cpu_threads must be positive")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if backend in ("onnxruntime", "onnxruntime-int8"):
+        device = torch.device("cpu")
+    elif backend == "onnxruntime-cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is unavailable")
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_load_started = time.perf_counter()
-    predictor = load_predictor(device=device, backend="pytorch")
+    predictor = load_predictor(
+        device=device,
+        backend=backend,
+        cpu_threads=cpu_threads,
+    )
     if predictor.device.type == "cuda":
         torch.cuda.synchronize(predictor.device)
     model_load_seconds = time.perf_counter() - model_load_started
@@ -277,9 +297,19 @@ def evaluate(
         "negative_log_likelihood": loss,
     }
 
+    if predictor.backend == "onnxruntime-int8":
+        model_artifact_path = DEFAULT_ONNX_INT8_MODEL_PATH
+    elif predictor.backend.startswith("onnxruntime"):
+        model_artifact_path = DEFAULT_ONNX_MODEL_PATH
+    else:
+        model_artifact_path = DEFAULT_CHECKPOINT_PATH
+
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     suffix = "-subset" if is_subset else ""
-    output_directory = output_root / f"fp32-test-{timestamp}{suffix}"
+    output_prefix = (
+        "fp32" if predictor.backend == "pytorch-eager" else predictor.backend
+    )
+    output_directory = output_root / f"{output_prefix}-test-{timestamp}{suffix}"
     output_directory.mkdir(parents=True, exist_ok=False)
     summary_path = output_directory / "summary.json"
     per_class_path = output_directory / "per_class_metrics.csv"
@@ -310,6 +340,7 @@ def evaluate(
         "class_count": len(predictor.class_to_taxon),
         "class_mapping_path": str(DEFAULT_CLASS_MAPPING_PATH),
         "class_mapping_sha256": _file_sha256(DEFAULT_CLASS_MAPPING_PATH),
+        "cpu_threads": cpu_threads if predictor.device.type == "cpu" else None,
         "created_at_utc": datetime.now(UTC).isoformat(),
         "device": str(predictor.device),
         "evaluated_row_count": len(rows),
@@ -320,8 +351,8 @@ def evaluate(
         "manifest_path": str(manifest_path.resolve()),
         "manifest_sha256": _file_sha256(manifest_path),
         "metrics": metrics,
-        "model_artifact_path": str(DEFAULT_CHECKPOINT_PATH),
-        "model_artifact_sha256": _file_sha256(DEFAULT_CHECKPOINT_PATH),
+        "model_artifact_path": str(model_artifact_path),
+        "model_artifact_sha256": _file_sha256(model_artifact_path),
         "model_load_seconds": model_load_seconds,
         "model_name": predictor.model_name,
         "precision": predictor.precision,
@@ -338,7 +369,7 @@ def evaluate(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluate Birdly FP32 on test data.")
+    parser = argparse.ArgumentParser(description="Evaluate Birdly on test data.")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument(
         "--calibration-bins", type=int, default=DEFAULT_CALIBRATION_BINS
@@ -347,6 +378,17 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--image-root", type=Path, default=DEFAULT_IMAGE_ROOT)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--max-images", type=int)
+    parser.add_argument(
+        "--backend",
+        choices=(
+            "pytorch",
+            "onnxruntime",
+            "onnxruntime-cuda",
+            "onnxruntime-int8",
+        ),
+        default="pytorch",
+    )
+    parser.add_argument("--cpu-threads", type=int, default=1)
     return parser.parse_args()
 
 
@@ -359,6 +401,8 @@ def main() -> None:
         image_root=args.image_root,
         output_root=args.output_root,
         max_images=args.max_images,
+        backend=args.backend,
+        cpu_threads=args.cpu_threads,
     )
     print(json.dumps(summary, indent=2, sort_keys=True))
 

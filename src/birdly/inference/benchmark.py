@@ -569,7 +569,12 @@ def _parse_args() -> dict[str, Any]:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIRECTORY)
     parser.add_argument(
         "--backend",
-        choices=("pytorch", "onnxruntime", "onnxruntime-cuda"),
+        choices=(
+            "pytorch",
+            "onnxruntime",
+            "onnxruntime-cuda",
+            "onnxruntime-int8",
+        ),
         default="pytorch",
     )
     parser.add_argument(
