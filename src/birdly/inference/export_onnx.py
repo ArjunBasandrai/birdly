@@ -86,6 +86,7 @@ def export_onnx_model(
             dynamo=True,
             dynamic_shapes=({0: "batch"},),
             external_data=False,
+            verbose=False,
         )
         onnx.checker.check_model(str(temporary_path))
         os.replace(temporary_path, output_path)
@@ -128,7 +129,7 @@ def export_onnx_model(
         "source_checkpoint_path": str(DEFAULT_CHECKPOINT_PATH),
         "source_checkpoint_sha256": _file_sha256(DEFAULT_CHECKPOINT_PATH),
         "source_training_run_id": "77f7cd76e2cf4ed0829c6ebbf8de8b65",
-        "torch_version": torch.__version__,
+        "torch_version": str(torch.__version__),
     }
     _write_json(metadata_path, metadata)
     return metadata
