@@ -1,0 +1,30 @@
+[Unit]
+Description=Birdly Raspberry Pi inference API
+After=network.target
+
+[Service]
+Type=simple
+User=birdly
+Group=birdly
+WorkingDirectory=/opt/birdly-pi
+EnvironmentFile=/etc/birdly-pi.env
+Environment=PYTHONPATH=/opt/birdly-pi/app:/opt/birdly-pi/app/src
+Environment=BIRDLY_API_CONFIG=/opt/birdly-pi/app/api.yaml
+Environment=BIRDLY_MODEL_DIR=/opt/birdly-pi/model
+ExecStart=/opt/birdly-pi/.venv/bin/python -m uvicorn main:app --host ${BIRDLY_BIND_ADDRESS} --port ${BIRDLY_PORT} --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictSUIDSGID=true
+UMask=0077
+MemoryMax=850M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

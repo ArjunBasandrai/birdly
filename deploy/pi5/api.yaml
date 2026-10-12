@@ -1,0 +1,10 @@
+backend: onnxruntime
+model_directory: /opt/birdly-pi/model
+rate_limit_per_minute: 15
+maximum_upload_bytes: 5242880
+maximum_image_width: 4096
+maximum_image_height: 4096
+request_timeout_seconds: 30
+maximum_inference_concurrency: 1
+cpu_threads: 2
+allowed_cors_origins: []
