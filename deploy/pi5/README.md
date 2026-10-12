@@ -15,7 +15,7 @@ The build uses `deploy/cloud-run/build/model` by default. Use `--model-source PA
 From Windows PowerShell:
 
 ```powershell
-scp -i "$env:USERPROFILE\.ssh\ovh-elixir" dist\birdly-pi5-arm64.tar.gz <pi-user>@<pi-ip>:~/
+scp dist\birdly-pi5-arm64.tar.gz <pi-user>@<pi-ip>:~/
 ```
 
 ## Install
