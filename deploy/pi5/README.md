@@ -28,7 +28,7 @@ cd birdly-pi5
 sudo ./install.sh
 ```
 
-The installer checks the model files, installs under `/opt/birdly-pi`, creates `/etc/birdly-pi.env` only if absent, and starts `birdly-pi.service`. Reinstall with a new archive and the same commands. The installer preserves the environment file.
+The installer requires Python 3.11, 3.12, or 3.13. It checks the model files, installs under `/opt/birdly-pi`, creates `/etc/birdly-pi.env` only if absent, and starts `birdly-pi.service`. Reinstall with a new archive and the same commands. The installer preserves the environment file.
 
 ## Check and test
 

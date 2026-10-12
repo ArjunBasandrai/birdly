@@ -11,9 +11,9 @@ fail() { echo "Birdly install failed: $*" >&2; exit 1; }
 command -v python3 >/dev/null || fail "python3 is required"
 command -v systemctl >/dev/null || fail "systemd is required"
 command -v sha256sum >/dev/null || fail "sha256sum is required"
-python3 - <<'PY' || fail "Python 3.11 or 3.12 is required"
+python3 - <<'PY' || fail "Python 3.11, 3.12, or 3.13 is required"
 import sys
-assert sys.version_info[:2] in ((3, 11), (3, 12))
+assert sys.version_info[:2] in ((3, 11), (3, 12), (3, 13))
 PY
 source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$source_dir"
