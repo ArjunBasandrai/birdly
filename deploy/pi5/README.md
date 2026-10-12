@@ -46,7 +46,7 @@ The benchmark measures HTTP requests. It does not report model-only latency. It 
 
 ## Configuration
 
-Edit `/etc/birdly-pi.env`, then run `sudo systemctl restart birdly-pi`. Defaults are `BIRDLY_BIND_ADDRESS=0.0.0.0`, `BIRDLY_PORT=8080`, `BIRDLY_CPU_THREADS=2`, and `BIRDLY_MAX_INFERENCE_CONCURRENCY=1`. The API also accepts `BIRDLY_RATE_LIMIT_PER_MINUTE`, `BIRDLY_MAX_UPLOAD_BYTES`, `BIRDLY_MAX_IMAGE_WIDTH`, `BIRDLY_MAX_IMAGE_HEIGHT`, and `BIRDLY_REQUEST_TIMEOUT_SECONDS`. Use `BIRDLY_CORS_ORIGINS` for explicit browser origins.
+Edit `/etc/birdly-pi.env`, then run `sudo systemctl restart birdly-pi`. Defaults are `BIRDLY_BIND_ADDRESS=0.0.0.0`, `BIRDLY_PORT=8080`, `BIRDLY_CPU_THREADS=2`, and `BIRDLY_MAX_INFERENCE_CONCURRENCY=1`. The upload limit is 20 MiB (20,971,520 bytes). The API also accepts `BIRDLY_RATE_LIMIT_PER_MINUTE`, `BIRDLY_MAX_UPLOAD_BYTES`, `BIRDLY_MAX_IMAGE_WIDTH`, `BIRDLY_MAX_IMAGE_HEIGHT`, and `BIRDLY_REQUEST_TIMEOUT_SECONDS`. Use `BIRDLY_CORS_ORIGINS` for explicit browser origins. If `/etc/birdly-pi.env` already contains `BIRDLY_MAX_UPLOAD_BYTES`, that value overrides the default.
 
 Use `sudo systemctl restart birdly-pi` or `sudo systemctl stop birdly-pi` to control the service. For uninstall, stop and disable the service, remove `/etc/systemd/system/birdly-pi.service` and `/opt/birdly-pi`, then run `sudo systemctl daemon-reload`. Remove `/etc/birdly-pi.env` only if you no longer need its settings.
 
